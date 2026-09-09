@@ -29,3 +29,12 @@ Característica: Cuentas bancarias
     Dado que el cliente aun no tiene cuenta
     Cuando ingresa a la app y solicita una cuenta en guaranies
     Entonces el sistema le genera un numero de cuenta de caja de ahorro
+
+# Rocio Carolina Figueredo Mendoza
+ 
+  @happy-path
+  Escenario: Actualización de saldo después de un crédito
+    Dado que el cliente tiene una cuenta activa
+    Y la cuenta tiene un saldo disponible
+    Cuando se registra un crédito en la cuenta
+    Entonces el sistema aumenta el saldo por el monto acreditado
