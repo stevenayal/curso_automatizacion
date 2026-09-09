@@ -24,3 +24,10 @@ Característica: Cuentas bancarias
     Dado que el cliente tiene una cuenta recién creada
     Cuando consulta los movimientos de esa cuenta
     Entonces el sistema devuelve una lista vacía sin error
+
+     # Fabian Mendoza Arce
+  @happy-path
+  Escenario: Consulta de movimientos de una cuenta activa
+    Dado que el cliente tiene una cuenta activa con movimientos registrados
+    Cuando consulta los movimientos de su cuenta
+    Entonces el sistema devuelve la lista de movimientos realizados
