@@ -29,3 +29,12 @@ Característica: Cuentas bancarias
     Dado que el cliente aun no tiene cuenta
     Cuando ingresa a la app y solicita una cuenta en guaranies
     Entonces el sistema le genera un numero de cuenta de caja de ahorro
+
+
+    # Fabian Romero Ferreira
+ 
+  @negativo
+  Escenario: Consulta de saldo de una cuenta bloqueada
+    Dado que el cliente tiene una cuenta bancaria bloqueada
+    Cuando consulta el saldo de esa cuenta
+    Entonces el sistema informa que la cuenta se encuentra bloqueada
