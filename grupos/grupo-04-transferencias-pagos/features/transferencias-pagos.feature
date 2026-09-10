@@ -42,3 +42,15 @@ Característica: Transferencias y pagos
     Dado que el cliente tiene una cuenta activa con saldo suficiente
     Cuando intenta transferir a un número de cuenta que no existe
     Entonces el sistema rechaza la operación y no registra la transferencia
+  
+  @negativo
+  Escenario: Pago con saldo insuficiente
+    Dado que el cliente tiene una factura pendiente y saldo insuficiente en su cuenta
+    Cuando intenta pagar el monto adeudado
+    Entonces el sistema rechaza la operación y no registra el pago
+
+    @negativo
+  Escenario: Transferencia con monto cero o negativo 
+    Dado que el cliente tiene una cuenta activa con saldo suficiente
+    Cuando intenta transferir un monto menor o igual a cero
+    Entonces el sistema rechaza la operación y muestra un error de monto inválido
