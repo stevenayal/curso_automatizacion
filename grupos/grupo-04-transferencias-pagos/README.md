@@ -9,15 +9,16 @@ Máximo 3. Completar con nombre y email (ver [`docs/ROSTER.md`](../../docs/ROSTE
 
 | # | Nombre y apellido | Email |
 |---|---|---|
-| 1 |  |  |
-| 2 |  |  |
-| 3 |  |  |
+| 1 | BERNAL OJEDA, JAVIER NICOLAS | 5558015 |
+| 2 | MONGELOS PORTILLO, LETICIA BETHARRAM | bethmongelos7@gmail.com |
+| 3 | MORINIGO ORTEGA, KATHERINE JAZMIN | 3853604 |
+| 4 | RODI ENCINA, FRANCISCO RAFAEL | 5182434 |
 
 ## Alcance
 
 Completar antes de escribir el primer escenario:
 
-- **Objetivo:**
+- **Objetivo:** Validar el correcto funcionamiento funcional y operacional de las transferencias (entre cuentas propias y a terceros) y del pago de facturas
 - **Supuestos:**
 - **Riesgos:**
 - **Cobertura incluida:**
@@ -40,8 +41,8 @@ agreguen casos propios en vez de copiarlo tal cual.
 
 Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
-- [ ] Análisis y alcance (sección de arriba completa)
-- [ ] BDD — `features/transferencias-pagos.feature` (happy path, negativo y edge case)
+- [x] Análisis y alcance (sección de arriba completa)
+- [x] BDD — `features/transferencias-pagos.feature` (happy path, negativo y edge case)
 - [ ] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico
 - [ ] UI — `tests/e2e/transferencias-pagos.spec.ts` con Playwright
 - [ ] Evidencias en `evidence/`
