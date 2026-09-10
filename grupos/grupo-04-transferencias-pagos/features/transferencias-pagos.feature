@@ -24,3 +24,21 @@ Característica: Transferencias y pagos
     Dado que existe una factura en estado pagada
     Cuando el cliente intenta pagarla de nuevo
     Entonces el sistema rechaza el pago y no se duplica el registro
+
+  @happy-path
+  Escenario: Pago exitoso de una factura pendiente
+    Dado que el cliente tiene una factura pendiente y saldo suficiente en su cuenta
+    Cuando paga la factura por el monto total adeudado
+    Entonces la factura pasa a estado pagada y se descuenta el monto de la cuenta
+
+  @negativo
+  Escenario: Transferencia con saldo insuficiente
+    Dado que el cliente tiene una cuenta activa con saldo insuficiente
+    Cuando intenta transferir un importe mayor al saldo disponible
+    Entonces el sistema rechaza la operación y no registra la transferencia
+
+  @negativo
+  Escenario: Transferencia a una cuenta destino inexistente
+    Dado que el cliente tiene una cuenta activa con saldo suficiente
+    Cuando intenta transferir a un número de cuenta que no existe
+    Entonces el sistema rechaza la operación y no registra la transferencia
