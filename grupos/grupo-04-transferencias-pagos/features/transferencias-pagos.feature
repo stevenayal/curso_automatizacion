@@ -54,3 +54,23 @@ Característica: Transferencias y pagos
     Dado que el cliente tiene una cuenta activa con saldo suficiente
     Cuando intenta transferir un monto menor o igual a cero
     Entonces el sistema rechaza la operación y muestra un error de monto inválido
+
+
+
+     @happy-path
+  Escenario: Registrar beneficiario exitosamente
+    Dado que el usuario se encuentra en el sector de "Agregar Beneficiario"
+    Cuando completa el formulario con los datos y confirma la operación
+    Entonces el nuevo contacto debe aparecer en la lista de cuentas guardadas
+
+  @negativo
+  Escenario: Intenta registrar beneficiario con datos inexistentes
+    Dado que el usuario se encuentra en el sector de "Agregar Beneficiario"
+    Cuando completa el formulario con datos que no existen
+    Entonces el sistema rechaza la operación y no registra el contacto
+
+  @edge-case
+  Escenario: Intenta registrar beneficiario ya existente
+    Dado el usuario cuenta con un beneficiario con Nro de cuenta '000113636-01-1'
+    Cuando completa el formulario con Nro de cuenta '000113636-01-1' ya existente
+    Entonces el sistema lanza una validación de dato redundante y no duplica el contacto
