@@ -32,4 +32,10 @@ Característica: Préstamos
     Entonces el sistema indica que el préstamo está en mora
     Y muestra el monto total adeudado incluyendo las cuotas vencidas
 
+  @negativo
+  Escenario:  Intento de pago de cuota con fondos insuficientes
+    Dado que el cliente quiere pagar una cuota de su prestamo
+    Cuando consulta al préstamo correspondiente a pagar
+    Entonces el sistema rechaza el pago debido a fondos insuficientes
+
 
