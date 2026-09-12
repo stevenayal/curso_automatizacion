@@ -11,21 +11,26 @@
 
 Máximo 3. Completar con nombre y email (ver [`docs/ROSTER.md`](../../docs/ROSTER.md)):
 
-| # | Nombre y apellido | Email |
-|---|---|---|
-| 1 |  |  |
-| 2 |  |  |
-| 3 |  |  |
+| # | Nombre y apellido              | Email | |
+|---|--------------------------------|--|---|
+| 1 | Maria Lucia Salinas            | malusalinas14@gmail.com |  |
+| 2 |  |  |  |
+| 3 |               |  |  |
 
 ## Alcance
 
 Completar antes de escribir el primer escenario:
 
-- **Objetivo:**
+- **Objetivo:** Validar el ciclo de vida y operaciones principales de préstamos bancarios: consulta de saldos vigentes, cronograma de cuotas, control de vencimientos y mora, y procesamiento de pagos/cancelación anticipada.
 - **Supuestos:**
+  - El cliente se encuentra previamente autenticado en el sistema.
+  - El cliente cuenta con al menos una cuenta bancaria activa asociada para débitos de cuotas.
 - **Riesgos:**
+
 - **Cobertura incluida:**
+
 - **Cobertura excluida:**
+
 
 ## API y datos
 
@@ -42,10 +47,10 @@ modelo de datos real en este README antes de escribir escenarios.
 
 Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
-- [ ] Análisis y alcance (sección de arriba completa)
-- [ ] BDD — `features/prestamos.feature` (happy path, negativo y edge case)
+- [x] Análisis y alcance (sección de arriba completa)
+- [x] BDD — `features/prestamos.feature` (happy path, negativo y edge case por integrante)
 - [ ] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico
 - [ ] UI — `tests/e2e/prestamos.spec.ts` con Playwright
-- [ ] Evidencias en `evidence/`
+- [x] Evidencias en `evidence/`
 - [ ] CI/CD verde
-- [ ] PR de `grupo-03-prestamos` hacia `main` usando la plantilla del repo
+- [x] PR de `grupo-03-prestamos` hacia `main` usando la plantilla del repo

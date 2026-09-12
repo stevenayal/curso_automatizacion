@@ -1,0 +1,82 @@
+
+1) Scenario: El cliente consulta el saldo de un préstamo vigente # features\prestamos.feature:13
+   ? Dado que el cliente tiene un préstamo vigente
+       Undefined. Implement with the following snippet:
+
+         Given('que el cliente tiene un préstamo vigente', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+   ? Cuando consulta el detalle de ese préstamo
+       Undefined. Implement with the following snippet:
+
+         When('consulta el detalle de ese préstamo', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+   ? Entonces el sistema devuelve el saldo pendiente y la próxima cuota
+       Undefined. Implement with the following snippet:
+
+         Then('el sistema devuelve el saldo pendiente y la próxima cuota', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+
+2) Scenario: Intento de pago de cuota con fondos insuficientes # features\prestamos.feature:19
+   ? Dado que el cliente quiere pagar una cuota de su prestamo
+       Undefined. Implement with the following snippet:
+
+         Given('que el cliente quiere pagar una cuota de su prestamo', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+   ? Cuando consulta al préstamo correspondiente a pagar
+       Undefined. Implement with the following snippet:
+
+         When('consulta al préstamo correspondiente a pagar', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+   ? Entonces el sistema rechaza el pago debido a fondos insuficientes
+       Undefined. Implement with the following snippet:
+
+         Then('el sistema rechaza el pago debido a fondos insuficientes', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+
+3) Scenario: Préstamo con todas las cuotas pagadas # features\prestamos.feature:25
+   ? Dado que el cliente tiene un préstamo con todas sus cuotas pagadas
+       Undefined. Implement with the following snippet:
+
+         Given('que el cliente tiene un préstamo con todas sus cuotas pagadas', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+   ? Cuando consulta el detalle de ese préstamo
+       Undefined. Implement with the following snippet:
+
+         When('consulta el detalle de ese préstamo', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+   ? Entonces el saldo pendiente es cero y el estado es cancelado
+       Undefined. Implement with the following snippet:
+
+         Then('el saldo pendiente es cero y el estado es cancelado', function () {
+           // Write code here that turns the phrase above into concrete actions
+           return 'pending';
+         });
+
+
+3 scenarios (3 undefined)
+9 steps (9 undefined)
+0m00.006s (executing steps: 0m00.000s)
