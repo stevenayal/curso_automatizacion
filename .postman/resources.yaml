@@ -1,0 +1,19 @@
+workspace:
+  id: 4e35cf7c-8e2e-4246-baf5-efb69409c573
+
+localResources:
+  collections:
+    - ../skills/postman-newman-skill/examples/Example API
+  specs:
+    - ../postman/specs/test/test.yaml
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/CIT Automatizacion - Aiquaa Sandbox API v2: 13451936-a2c36bf1-33a1-4a17-94e6-8768edb25cf3
+  globals:
+    ../postman/globals/workspace.globals.yaml: f85e9840-39b4-48c1-8fe4-aa4620a1d7ba
+resourceNameMappings:
+  specs:
+    - ../postman/specs/test/test.yaml: test
