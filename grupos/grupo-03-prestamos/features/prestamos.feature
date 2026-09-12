@@ -38,4 +38,8 @@ Característica: Préstamos
     Cuando consulta al préstamo correspondiente a pagar
     Entonces el sistema rechaza el pago debido a fondos insuficientes
 
-
+  @happy-path
+  Escenario: El cliente selecciona múltiples cuotas para pagar
+    Dado que el cliente tiene un préstamo vigente con al menos dos cuotas pendientes
+    Cuando consulta el detalle y selecciona más de una cuota consecutiva a pagar
+    Entonces el sistema calcula y devuelve la sumatoria exacta del monto de las cuotas seleccionadas
