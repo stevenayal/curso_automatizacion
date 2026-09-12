@@ -24,11 +24,12 @@ Característica: Préstamos
     Dado que el cliente tiene un préstamo con todas sus cuotas pagadas
     Cuando consulta el detalle de ese préstamo
     Entonces el saldo pendiente es cero y el estado es cancelado
-	
+
   @negativo
   Escenario: Consulta de un préstamo con cuotas vencidas sin pagar
     Dado que el cliente tiene un préstamo con al menos una cuota vencida y sin pagar
     Cuando consulta el detalle de ese préstamo
     Entonces el sistema indica que el préstamo está en mora
     Y muestra el monto total adeudado incluyendo las cuotas vencidas
-	
+
+
