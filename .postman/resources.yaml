@@ -1,11 +1,12 @@
 workspace:
-  id: 4e35cf7c-8e2e-4246-baf5-efb69409c573
+  id: ""
 
 localResources:
   collections:
     - ../skills/postman-newman-skill/examples/Example API
   specs:
     - ../postman/specs/test/test.yaml
+    - ../postman/specs/test-1/test-1.yaml
 
 # Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
 
@@ -17,3 +18,4 @@ cloudResources:
 resourceNameMappings:
   specs:
     - ../postman/specs/test/test.yaml: test
+    - ../postman/specs/test-1/test-1.yaml: test
