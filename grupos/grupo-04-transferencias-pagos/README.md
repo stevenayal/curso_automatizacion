@@ -12,7 +12,7 @@ Máximo 3. Completar con nombre y email (ver [`docs/ROSTER.md`](../../docs/ROSTE
 | 1 | BERNAL OJEDA, JAVIER NICOLAS | 5558015 |
 | 2 | MONGELOS PORTILLO, LETICIA BETHARRAM | bethmongelos7@gmail.com |
 | 3 | MORINIGO ORTEGA, KATHERINE JAZMIN | 3853604 |
-| 4 | RODI ENCINA, FRANCISCO RAFAEL | 5182434 |
+| 4 | RODI ENCINA, FRANCISCO RAFAEL | rafaelorodi@gmail.com |
 
 ## Alcance
 
