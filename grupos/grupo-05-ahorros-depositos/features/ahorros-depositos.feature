@@ -24,3 +24,21 @@ Característica: Ahorros y depósitos
     Dado que el cliente tiene un depósito que vence hoy
     Cuando consulta el estado de ese depósito
     Entonces el sistema lo muestra como vencido y con los intereses acreditados
+
+  @happy-path
+  Escenario: Consultar las tasas disponibles para depósitos a plazo
+    Dado que existen opciones de depósitos a plazo disponibles
+    Cuando el cliente consulta las tasas vigentes
+    Entonces el sistema muestra los importes, plazos y tasas de interés disponibles
+
+  @happy-path
+  Escenario: Consultas los intereses generados
+    Dado que el cliente tenga al menos un depósito a plazo vigente
+    Cuando el cliente consulte un respectivo plazo
+    Entonces el sistema le mostrará los intereses generados
+    
+  @edge-case
+  Escenario: Constituir un depósito con el importe mínimo permitido
+    Dado que el cliente tiene saldo suficiente
+    Cuando constituye un depósito por el importe mínimo permitido
+    Entonces el sistema registra el depósito correctamente
