@@ -29,3 +29,11 @@ Característica: Cuentas bancarias
     Dado que el cliente aun no tiene cuenta
     Cuando ingresa a la app y solicita una cuenta en guaranies
     Entonces el sistema le genera un numero de cuenta de caja de ahorro
+
+    Escenario: Consultar los movimientos de una cuenta bancaria
+    Dado que el cliente posee una cuenta bancaria con movimientos registrados
+    Cuando consulta los movimientos de la cuenta
+    Entonces el sistema debe mostrar los movimientos asociados a la cuenta
+    Y debe mostrar la información correspondiente a cada movimiento
+
+
