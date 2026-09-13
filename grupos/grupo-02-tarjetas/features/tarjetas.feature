@@ -42,3 +42,15 @@ Característica: Tarjetas de crédito y débito
     Dado que el cliente tiene una tarjeta en estado bloqueada
     Cuando solicita aumentar el límite de esa tarjeta
     Entonces el sistema rechaza la solicitud de aumento de límite
+
+  @happy-path
+  Escenario: Listar tarjetas
+    Dado que el cliente cuenta con tarjetas activas
+    Cuando el cliente pulsa la opción Tarjetas 
+    Entonces se muestra un listado de sus tarjetas activas
+
+  @negativo
+  Escenario: Error en la lectura de tarjetas
+    Dado que el cliente inició sesión de manera correcta
+    Cuando pulsa la opción Tarjetas y ocurre un error de lectura
+    Entonces el sistema le muestra un mensaje de error de lectura
