@@ -50,3 +50,10 @@ Característica: Ahorros y depósitos
     Entonces el sistema rechaza la cancelación anticipada
     Y el depósito permanece vigente
 
+  @negativo
+  Escenario: Constituir un depósito sin saldo suficiente
+    Dado que el cliente tiene una cuenta de ahorro activa
+    Y el saldo disponible es menor al importe del depósito
+    Cuando intenta constituir un depósito a plazo
+    Entonces el sistema rechaza la operación
+    Y el depósito no es generado
