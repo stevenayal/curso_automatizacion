@@ -42,3 +42,11 @@ Característica: Ahorros y depósitos
     Dado que el cliente tiene saldo suficiente
     Cuando constituye un depósito por el importe mínimo permitido
     Entonces el sistema registra el depósito correctamente
+
+  @negativo
+  Escenario: Intentar cancelar un depósito a plazo antes de su vencimiento
+    Dado que el cliente tiene un depósito a plazo vigente
+    Cuando intenta cancelar el depósito antes de la fecha de vencimiento
+    Entonces el sistema rechaza la cancelación anticipada
+    Y el depósito permanece vigente
+
