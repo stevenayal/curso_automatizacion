@@ -9,7 +9,7 @@ Máximo 3. Completar con nombre y email (ver [`docs/ROSTER.md`](../../docs/ROSTE
 
 | # | Nombre y apellido | Email |
 |---|---|---|
-| 1 |  |  |
+| 1 | Beatríz López  | mbyjarl@fpuna.edu.py  |
 | 2 |  |  |
 | 3 |  |  |
 
