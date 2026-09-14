@@ -37,3 +37,8 @@ Característica: Tarjetas de crédito y débito
     Dado que el cliente tiene una tarjeta activa con un límite disponible determinado
     Cuando intenta realizar una compra por un monto superior al límite disponible
     Entonces el sistema rechaza la transacción por fondos insuficientes
+  @happy-path
+  Escenario: Reimpresión de Tarjeta
+    Dado que el cliente tiene una tarjeta en estado activo y esta se extravía o sufre deterioro
+    Cuando solicita la reimpresión de la tarjeta
+    Entonces el sistema emite la nueva tarjeta y registra la reimpresión en el historial de la tarjeta
