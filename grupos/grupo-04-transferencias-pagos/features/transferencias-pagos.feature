@@ -82,3 +82,9 @@ Característica: Transferencias y pagos
     Dado el usuario cuenta con un beneficiario con Nro de cuenta '000113636-01-1'
     Cuando completa el formulario con Nro de cuenta '000113636-01-1' ya existente
     Entonces el sistema lanza una validación de dato redundante y no duplica el contacto
+
+  @negativo
+  Escenario: Transferencia a terceros que supera el límite diario permitido
+    Dado que el cliente tiene una cuenta activa con saldo suficiente y su límite diario de transferencia a terceros es de Gs.50,000,000
+    Cuando intenta transferir un importe de Gs.51,000,000 a un tercero
+    Entonces el sistema rechaza la operación por superar el límite diario y el saldo disponible de la cuenta origen no se altera
