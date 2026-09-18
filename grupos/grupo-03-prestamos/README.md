@@ -35,16 +35,29 @@ Operaciones multi-cuota: Capacidad del sistema para permitir al usuario seleccio
 Seguridad de datos: Restricciones de acceso para garantizar que un cliente autenticado no pueda consultar el detalle de un préstamo que pertenezca a un tercero.
 - **Cobertura excluida:**
 Flujo de originación: El proceso de simulación, solicitud, evaluación de riesgo crediticio, aprobación y desembolso de nuevos préstamos.
+
 ## API y datos
 
 | Capa | Recursos |
 |---|---|
-| REST | *por publicar* — revisar `GET /api/v1/docs` |
-| SQL sandbox | `POST /api/v1/sql/select`, `POST /api/v1/sql/update` sobre `prestamos` y `cuotas` (nombres a confirmar contra la DB) |
+| REST | **Publicado bajo `/api/v2/`** (Curso 2 — Productos Bancarios). Ver `GET /api/v2/docs`. Endpoints: `GET/POST /api/v2/prestamos`, `GET/PUT/DELETE /api/v2/prestamos/{id}`, `POST /api/v2/prestamos/{id}/aprobar`, `GET /api/v2/prestamos/{id}/cuotas`, `POST /api/v2/prestamos/{id}/cuotas/{numero}/pagar` |
+| SQL sandbox | `POST /api/v2/sql/select`, `POST /api/v2/sql/update` sobre `prestamos` y `cuotas_prestamo` (schema `qa_training_v2`) |
 | DB directa | usuario `qa_g03` — ver [`docs/ACCESO-DB.md`](../../docs/ACCESO-DB.md) |
 
-Primer paso sugerido: listar las tablas del módulo con un `SELECT` contra la DB y documentar el
-modelo de datos real en este README antes de escribir escenarios.
+Modelo de datos confirmado contra la API real:
+- **Prestamo**: `id`, `usuario_id`, `cuenta_id`, `monto_solicitado`, `tasa_interes`, `plazo_meses`, `saldo_pendiente`, `estado` (`solicitado`/`aprobado`/`rechazado`/`pagado`), `activo`, `created_at`
+- **CuotaPrestamo**: `id`, `prestamo_id`, `numero_cuota`, `monto`, `fecha_vencimiento`, `estado` (`pendiente`/`pagada`/`vencida`), `fecha_pago`
+
+## Trazabilidad BDD → API
+
+| Escenario BDD | Endpoint / Método | Datos usados | Resultado esperado |
+|---|---|---|---|
+| Consulta de un préstamo con cuotas vencidas sin pagar | `GET /api/v2/prestamos/{id}/cuotas?estado=vencida` | `prestamo_id=4` (2 cuotas vencidas reales del sandbox, sin `fecha_pago`) | Devuelve solo cuotas en estado `vencida`; ninguna tiene `fecha_pago` registrada |
+| El cliente consulta el saldo de un préstamo vigente | `GET /api/v2/prestamos/{id}` | `prestamo_id=2` (estado `aprobado`) | Devuelve `saldo_pendiente` > 0 y datos del préstamo |
+| Consulta de un préstamo de otro cliente | `GET /api/v2/prestamos/{id}` | por definir (pendiente de implementar por otro integrante) | por definir |
+| Préstamo con todas las cuotas pagadas | `GET /api/v2/prestamos/{id}` | `prestamo_id=6` (estado `pagado`, `saldo_pendiente` = "0.00") | `saldo_pendiente` = 0 y `estado` = `pagado` |
+
+Colección Postman: [`postman/Grupo 03 - Prestamos.postman_collection.json`](./postman/Grupo%2003%20-%20Prestamos.postman_collection.json)
 
 ## Entregables
 
@@ -52,7 +65,7 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [X] Análisis y alcance (sección de arriba completa)
 - [X] BDD — `features/prestamos.feature` (happy path, negativo y edge case)
-- [ ] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico
+- [ ] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico *(1 de 4 escenarios completo: mora)*
 - [ ] UI — `tests/e2e/prestamos.spec.ts` con Playwright
 - [ ] Evidencias en `evidence/`
 - [ ] CI/CD verde
