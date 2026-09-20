@@ -1,0 +1,13 @@
+# Use this workspace to collaborate
+workspace:
+  id: c90c3f0a-1405-4b27-8a59-4b28e447717b
+
+cloudResources:
+  collections:
+    ../postman/collections/Grupo 05 - Ahorros y Depositos: 87e55750-4a1f-4886-8455-09f055986bee
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

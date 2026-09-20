@@ -1,0 +1,20 @@
+$kind: collection
+description: |-
+  Coleccion simple para practicar escenarios BDD del Grupo 05 usando AIQUAA.
+
+  Antes de ejecutar:
+
+  1. Completar la variable apiKey.
+      
+  2. Completar depositoVigenteId con el ID de un deposito activo.
+      
+  3. Completar depositoVencidoId con el ID de un deposito vencido.
+      
+  4. Completar usuarioId y cuentaId con datos validos para probar saldo insuficiente.
+variables:
+  baseUrl: https://aiquaa-sandbox-api.vercel.app
+  apiKey: ""
+  depositoVigenteId: "1"
+  depositoVencidoId: "4"
+  usuarioId: "1"
+  cuentaId: "1"
