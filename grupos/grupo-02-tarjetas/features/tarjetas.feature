@@ -24,3 +24,9 @@ Característica: Tarjetas de crédito y débito
     Dado que el cliente tiene una tarjeta con fecha de vencimiento pasada
     Cuando consulta el disponible de esa tarjeta
     Entonces el sistema indica que la tarjeta está vencida
+
+  @happy-path
+  Escenario: Reimpresión de Tarjeta
+    Dado que el cliente tiene una tarjeta en estado activo y esta se extravía o sufre deterioro
+    Cuando solicita la reimpresión de la tarjeta
+    Entonces el sistema emite la nueva tarjeta y registra la reimpresión en el historial de la tarjeta

@@ -1,0 +1,11 @@
+$kind: http-request
+name: DELETE /resources/:id — eliminar
+url: "{{baseUrl}}/resources/{{resourceId}}"
+method: DELETE
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 204', () => pm.response.to.have.status(204));
+      pm.environment.unset('resourceId');
+    language: text/javascript
+order: 3000

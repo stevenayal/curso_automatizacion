@@ -3,7 +3,7 @@
 Característica: Cuentas bancarias
   Como cliente del banco
   quiero consultar mis cuentas, saldos y movimientos
-  para controlar el estado de mi dinero
+  para controlar el estado de mi dinero 
 
   # Quitar el tag @wip cuando los steps estén implementados en tests/bdd/steps.
 
@@ -24,3 +24,16 @@ Característica: Cuentas bancarias
     Dado que el cliente tiene una cuenta recién creada
     Cuando consulta los movimientos de esa cuenta
     Entonces el sistema devuelve una lista vacía sin error
+
+    Escenario: Apertura de Cuentas en Guaranies
+    Dado que el cliente aun no tiene cuenta
+    Cuando ingresa a la app y solicita una cuenta en guaranies
+    Entonces el sistema le genera un numero de cuenta de caja de ahorro
+
+    Escenario: Consultar los movimientos de una cuenta bancaria
+    Dado que el cliente posee una cuenta bancaria con movimientos registrados
+    Cuando consulta los movimientos de la cuenta
+    Entonces el sistema debe mostrar los movimientos asociados a la cuenta
+    Y debe mostrar la información correspondiente a cada movimiento
+
+

@@ -1,0 +1,323 @@
+{
+  "info": {
+    "_postman_id": "92f8bdfe-a117-4d5b-9b6e-91ca506b73cd",
+    "name": "Grupo 05 - Ahorros y Depositos - 5 escenarios",
+    "description": "Colección unificada: tres escenarios de depósitos, cancelación anticipada y consulta de plan de ahorro por ID. Configurar apiKey e IDs válidos antes de ejecutar. ATENCIÓN: el escenario de cancelación ejecuta una operación real y espera éxito (200/cancelado); NO corresponde al escenario BDD negativo que exige rechazar la cancelación. Ejecutarlo solo con un depósito de prueba descartable, porque cambia su estado y puede impedir repetir las pruebas del depósito vigente.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Escenario 1 - Consultar deposito a plazo vigente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('La respuesta tiene los datos del deposito', function () {",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data).to.have.property('monto');",
+              "    pm.expect(data).to.have.property('tasa_anual');",
+              "    pm.expect(data).to.have.property('fecha_vencimiento');",
+              "});",
+              "pm.test('El deposito esta activo', function () { pm.expect(pm.response.json().data.estado).to.eql('activo'); });",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}?=",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoVigenteId}}"
+          ],
+          "query": [
+            {
+              "key": "",
+              "value": ""
+            }
+          ]
+        },
+        "description": "BDD: Dado que el cliente tiene un deposito a plazo vigente; cuando consulta su detalle; entonces recibe capital, tasa y vencimiento.",
+        "auth": {
+          "type": "apikey"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 2 - Deposito en su fecha de vencimiento",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('El deposito esta vencido', function () { pm.expect(pm.response.json().data.estado).to.eql('vencido'); });",
+              "pm.test('La respuesta muestra los intereses generados', function () { pm.expect(pm.response.json().data).to.have.property('interes_generado'); });",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVencidoId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoVencidoId}}"
+          ]
+        },
+        "description": "BDD: Dado un deposito que vence hoy; cuando se consulta; entonces se muestra vencido y con intereses acreditados."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 3 - Constituir deposito sin saldo suficiente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La operacion es rechazada con status 409', function () { pm.response.to.have.status(409); });",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: Dado que la cuenta tiene saldo insuficiente; cuando se intenta constituir un deposito; entonces se rechaza. El monto alto es un dato de prueba; comprobar por separado que no se genero el deposito.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"cuentaId\": {{cuentaId}},\n  \"monto\": 999999999999,\n  \"plazoDias\": 30,\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 4 - Cancelar deposito a plazo antes de su vencimiento",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La cancelacion anticipada se procesa correctamente', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Se cancela el deposito solicitado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.id).to.eql(Number(pm.variables.get('depositoCancelarId')));",
+              "});",
+              "",
+              "pm.test('El deposito queda en estado cancelado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.estado).to.eql('cancelado');",
+              "});",
+              "",
+              "pm.test('La respuesta contiene el capital del deposito', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('monto');",
+              "    pm.expect(Number(jsonData.data.monto)).to.be.at.least(0);",
+              "});",
+              "",
+              "pm.test('La respuesta contiene los intereses generados', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('interes_generado');",
+              "    pm.expect(Number(jsonData.data.interes_generado)).to.be.at.least(0);",
+              "});",
+              "",
+              "pm.test('La respuesta contiene los dias transcurridos', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('dias_transcurridos');",
+              "    pm.expect(Number(jsonData.data.dias_transcurridos)).to.be.at.least(0);",
+              "});",
+              "",
+              "pm.test('La cuenta del cliente recibe el resultado de la cancelacion', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('cuenta');",
+              "    pm.expect(jsonData.data.cuenta).to.have.property('saldo');",
+              "    pm.expect(Number(jsonData.data.cuenta.saldo)).to.be.at.least(0);",
+              "});",
+              "",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}/cancelar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoVigenteId}}",
+            "cancelar"
+          ]
+        },
+        "description": "BDD de cancelación exitosa (NO es el escenario negativo de rechazo de cancelación anticipada). Esta solicitud cambia el estado del depósito. Utilizar un ID de depósito vigente de prueba distinto de depositoVigenteId, si se desea mantener ejecutable el escenario 1. Ejecutar al final y no repetir sobre el mismo depósito."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 5 - Obtener plan de ahorro por ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Escenario 5: Obtener plan de ahorro por ID",
+              "",
+              "pm.test('La consulta devuelve el código 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('La respuesta tiene formato JSON', function () {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test('El ID del plan de ahorro es correcto', function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.id).to.eql(Number(pm.variables.get('ahorroId')));",
+              "});",
+              "",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/ahorros/{{ahorroId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "ahorros",
+            "{{ahorroId}}"
+          ]
+        },
+        "description": "BDD:\nDado que existe un plan de ahorro registrado\nCuando el cliente consulta el plan de ahorro por su ID\nEntonces el sistema devuelve la información del plan solicitado."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://aiquaa-sandbox-api.vercel.app"
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "depositoVigenteId",
+      "value": "1"
+    },
+    {
+      "key": "depositoVencidoId",
+      "value": "4"
+    },
+    {
+      "key": "usuarioId",
+      "value": "1"
+    },
+    {
+      "key": "cuentaId",
+      "value": "1"
+    },
+    {
+      "key": "ahorroId",
+      "value": "1"
+    }
+  ]
+}
