@@ -155,7 +155,87 @@
         "description": "BDD:\nDado que el cliente tiene una cuenta de ahorro activa\nY el saldo disponible es menor al importe del deposito\nCuando intenta constituir un deposito a plazo\nEntonces el sistema rechaza la operacion\nY el deposito no es generado.\n\nSe usa un monto muy alto para provocar saldo insuficiente."
       },
       "response": []
+    },
+    {
+  "name": "Escenario 4 - Cancelar deposito a plazo antes de su vencimiento",
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('La cancelacion anticipada se procesa correctamente', function () {",
+          "    pm.response.to.have.status(200);",
+          "});",
+          "",
+          "pm.test('Se cancela el deposito solicitado', function () {",
+          "    var jsonData = pm.response.json();",
+          "    pm.expect(jsonData.data.id).to.eql(Number(pm.variables.get('depositoVigenteId')));",
+          "});",
+          "",
+          "pm.test('El deposito queda en estado cancelado', function () {",
+          "    var jsonData = pm.response.json();",
+          "    pm.expect(jsonData.data.estado).to.eql('cancelado');",
+          "});",
+          "",
+          "pm.test('La respuesta contiene el capital del deposito', function () {",
+          "    var jsonData = pm.response.json();",
+          "    pm.expect(jsonData.data).to.have.property('monto');",
+          "    pm.expect(Number(jsonData.data.monto)).to.be.at.least(0);",
+          "});",
+          "",
+          "pm.test('La respuesta contiene los intereses generados', function () {",
+          "    var jsonData = pm.response.json();",
+          "    pm.expect(jsonData.data).to.have.property('interes_generado');",
+          "    pm.expect(Number(jsonData.data.interes_generado)).to.be.at.least(0);",
+          "});",
+          "",
+          "pm.test('La respuesta contiene los dias transcurridos', function () {",
+          "    var jsonData = pm.response.json();",
+          "    pm.expect(jsonData.data).to.have.property('dias_transcurridos');",
+          "    pm.expect(Number(jsonData.data.dias_transcurridos)).to.be.at.least(0);",
+          "});",
+          "",
+          "pm.test('La cuenta del cliente recibe el resultado de la cancelacion', function () {",
+          "    var jsonData = pm.response.json();",
+          "    pm.expect(jsonData.data).to.have.property('cuenta');",
+          "    pm.expect(jsonData.data.cuenta).to.have.property('saldo');",
+          "    pm.expect(Number(jsonData.data.cuenta.saldo)).to.be.at.least(0);",
+          "});",
+          "",
+          "pm.test('El tiempo de respuesta es menor a 3000 ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+          "});"
+        ]
+      }
     }
+  ],
+  "request": {
+    "method": "POST",
+    "header": [
+      {
+        "key": "x-api-key",
+        "value": "{{apiKey}}",
+        "type": "text"
+      }
+    ],
+    "url": {
+      "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}/cancelar",
+      "host": [
+        "{{baseUrl}}"
+      ],
+      "path": [
+        "api",
+        "v2",
+        "depositos",
+        "{{depositoVigenteId}}",
+        "cancelar"
+      ]
+    },
+    "description": "BDD:\nDado que el cliente tiene un deposito a plazo vigente\nCuando cancela el deposito antes de la fecha de vencimiento\nEntonces el sistema procesa la cancelacion anticipada\nY acredita el capital mas los intereses prorrateados en la cuenta del cliente."
+  },
+  "response": []
+}
   ],
   "variable": [
     {
