@@ -1,9 +1,10 @@
 {
   "info": {
-    "_postman_id": "53454e84-4ece-4ea3-badb-ce5bb27c5a2b",
+    "_postman_id": "796482b8-0d9e-45e7-aace-38bb3f62f4fc",
     "name": "Grupo 03 - Prestamos",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "24605825"
+    "_exporter_id": "511204",
+    "_collection_link": "https://go.postman.co/collection/511204-796482b8-0d9e-45e7-aace-38bb3f62f4fc?source=collection_link"
   },
   "item": [
     {
@@ -53,6 +54,97 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "06 - Pagar Prestamo",
+      "item": [
+        {
+          "name": "Pagar una cuota",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200', function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test('Respuesta es JSON válido', function () {\r\n    pm.response.to.be.json;\r\n});\r\n\r\npm.test('Tiempo de respuesta menor a 3000ms', function () {\r\n    pm.expect(pm.response.responseTime).to.be.below(3000);\r\n});\r\n\r\npm.test('Respuesta contiene datos del pago', function () {\r\n    const jsonData = pm.response.json();\r\n    const hasData = jsonData.hasOwnProperty('data') || jsonData.hasOwnProperty('pago') || jsonData.hasOwnProperty('cuota');\r\n    pm.expect(hasData, \"Expected 'data', 'pago' or 'cuota' in response\").to.be.true;\r\n});\r\n\r\npm.test('La cuota tiene estado pagada', function () {\r\n    const jsonData = pm.response.json();\r\n    const cuota = jsonData.data || jsonData.pago || jsonData.cuota || jsonData;\r\n    const estado = cuota.estado || cuota.status;\r\n    pm.expect(estado).to.be.oneOf(['pagada', 'pagado', 'paid']);\r\n});\r\n\r\npm.test('La cuota tiene fecha de pago registrada', function () {\r\n    const jsonData = pm.response.json();\r\n    const cuota = jsonData.data || jsonData.pago || jsonData.cuota || jsonData;\r\n    const fechaPago = cuota.fecha_pago || cuota.fechaPago || cuota.payment_date;\r\n    pm.expect(fechaPago).to.not.be.null;\r\n    pm.expect(fechaPago).to.not.be.undefined;\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "sbx_c2_demo_334993ffb9d684b17c116367"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_id}}/cuotas/{{numero_cuota}}/pagar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos",
+                "{{prestamo_id}}",
+                "cuotas",
+                "{{numero_cuota}}",
+                "pagar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET cuotas pendientes del Prestamo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response has data array\", function () {\n    const responseJson = pm.response.json();\n    pm.expect(responseJson).to.be.an('object');\n    pm.expect(responseJson.data).to.be.an('array');\n});\n\npm.test(\"All returned cuotas have estado pendiente\", function () {\n    const responseJson = pm.response.json();\n    responseJson.data.forEach(cuota => {\n        pm.expect(cuota.estado).to.eql('pendiente');\n    });\n});\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_id}}/cuotas?estado=pendiente",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos",
+                "{{prestamo_id}}",
+                "cuotas"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "pendiente"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "auth": {
@@ -81,6 +173,14 @@
     },
     {
       "key": "api_key",
+      "value": ""
+    },
+    {
+      "key": "prestamo_id",
+      "value": ""
+    },
+    {
+      "key": "numero_cuota",
       "value": ""
     }
   ]

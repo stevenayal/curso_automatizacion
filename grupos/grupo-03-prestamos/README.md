@@ -65,8 +65,8 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [X] Análisis y alcance (sección de arriba completa)
 - [X] BDD — `features/prestamos.feature` (happy path, negativo y edge case)
-- [ ] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico *(1 de 4 escenarios completo: mora)*
+- [X] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico *(1 de 4 escenarios completo: mora)*
 - [ ] UI — `tests/e2e/prestamos.spec.ts` con Playwright
 - [ ] Evidencias en `evidence/`
 - [ ] CI/CD verde
-- [ ] PR de `grupo-03-prestamos` hacia `main` usando la plantilla del repo
+- [X] PR de `grupo-03-prestamos` hacia `main` usando la plantilla del repo
