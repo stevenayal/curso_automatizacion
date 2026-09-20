@@ -1,0 +1,186 @@
+{
+  "info": {
+    "_postman_id": "1f92dcf1-b2b5-432f-8de3-5ca5f20061b4",
+    "name": "Grupo 05 - Ahorros y Depositos",
+    "description": "Coleccion simple para practicar escenarios BDD del Grupo 05 usando AIQUAA.\n\nAntes de ejecutar:\n\n1. Completar la variable apiKey.\n    \n2. Completar depositoVigenteId con el ID de un deposito activo.\n    \n3. Completar depositoVencidoId con el ID de un deposito vencido.\n    \n4. Completar usuarioId y cuentaId con datos validos para probar saldo insuficiente.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "39181059"
+  },
+  "item": [
+    {
+      "name": "Escenario 1 - Consultar deposito a plazo vigente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 200', function () {\n    pm.response.to.have.status(200);\n});\n\npm.test('La respuesta tiene los datos del deposito', function () {\n    var jsonData = pm.response.json();\n    pm.expect(jsonData.data).to.have.property('monto');\n    pm.expect(jsonData.data).to.have.property('tasa_anual');\n    pm.expect(jsonData.data).to.have.property('fecha_vencimiento');\n});\n\npm.test('El deposito esta activo', function () {\n    var jsonData = pm.response.json();\n    pm.expect(jsonData.data.estado).to.eql('activo');\n});\n\npm.test('El tiempo de respuesta es menor a 3000 ms', function () {\n    pm.expect(pm.response.responseTime).to.be.below(3000);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "apikey"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}?=",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoVigenteId}}"
+          ],
+          "query": [
+            {
+              "key": "",
+              "value": ""
+            }
+          ]
+        },
+        "description": "BDD:\nDado que el cliente tiene un deposito a plazo vigente\nCuando consulta el detalle de ese deposito\nEntonces el sistema devuelve el capital, la tasa y la fecha de vencimiento."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 2 - Deposito en su fecha de vencimiento",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('El deposito esta vencido', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.estado).to.eql('vencido');",
+              "});",
+              "",
+              "pm.test('La respuesta muestra los intereses generados', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('interes_generado');",
+              "});",
+              "",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVencidoId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoVencidoId}}"
+          ]
+        },
+        "description": "BDD:\nDado que el cliente tiene un deposito que vence hoy\nCuando consulta el estado de ese deposito\nEntonces el sistema lo muestra como vencido y con los intereses acreditados."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 3 - Constituir deposito sin saldo suficiente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La operacion es rechazada con status 409', function () {\n    pm.response.to.have.status(409);\n});\n\npm.test('El tiempo de respuesta es menor a 3000 ms', function () {\n    pm.expect(pm.response.responseTime).to.be.below(3000);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"usuarioId\": {{usuarioId}},\n    \"cuentaId\": {{cuentaId}},\n    \"monto\": 999999999999,\n    \"plazoDias\": 30,\n    \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD:\nDado que el cliente tiene una cuenta de ahorro activa\nY el saldo disponible es menor al importe del deposito\nCuando intenta constituir un deposito a plazo\nEntonces el sistema rechaza la operacion\nY el deposito no es generado.\n\nSe usa un monto muy alto para provocar saldo insuficiente."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://aiquaa-sandbox-api.vercel.app"
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "depositoVigenteId",
+      "value": "1"
+    },
+    {
+      "key": "depositoVencidoId",
+      "value": "4"
+    },
+    {
+      "key": "usuarioId",
+      "value": "1"
+    },
+    {
+      "key": "cuentaId",
+      "value": "1"
+    }
+  ]
+}
