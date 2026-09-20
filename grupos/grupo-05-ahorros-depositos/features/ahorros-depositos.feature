@@ -24,3 +24,37 @@ Característica: Ahorros y depósitos
     Dado que el cliente tiene un depósito que vence hoy
     Cuando consulta el estado de ese depósito
     Entonces el sistema lo muestra como vencido y con los intereses acreditados
+
+  @happy-path
+  Escenario: Consultar las tasas disponibles para depósitos a plazo
+    Dado que existen opciones de depósitos a plazo disponibles
+    Cuando el cliente consulta las tasas vigentes
+    Entonces el sistema muestra los importes, plazos y tasas de interés disponibles
+
+  @happy-path
+  Escenario: Consultas los intereses generados
+    Dado que el cliente tenga al menos un depósito a plazo vigente
+    Cuando el cliente consulte un respectivo plazo
+    Entonces el sistema le mostrará los intereses generados
+    
+  @edge-case
+  Escenario: Constituir un depósito con el importe mínimo permitido
+    Dado que el cliente tiene saldo suficiente
+    Cuando constituye un depósito por el importe mínimo permitido
+    Entonces el sistema registra el depósito correctamente
+
+
+  @happy-path
+  Escenario: Cancelar un depósito a plazo antes de su vencimiento
+    Dado que el cliente tiene un depósito a plazo vigente
+    Cuando cancela el depósito antes de la fecha de vencimiento
+    Entonces el sistema procesa la cancelación anticipada
+    Y acredita el capital más los intereses prorrateados en la cuenta del cliente
+
+  @negativo
+  Escenario: Constituir un depósito sin saldo suficiente
+    Dado que el cliente tiene una cuenta de ahorro activa
+    Y el saldo disponible es menor al importe del depósito
+    Cuando intenta constituir un depósito a plazo
+    Entonces el sistema rechaza la operación
+    Y el depósito no es generado

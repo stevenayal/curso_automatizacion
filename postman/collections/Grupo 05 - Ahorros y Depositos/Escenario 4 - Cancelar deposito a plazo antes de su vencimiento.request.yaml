@@ -1,0 +1,58 @@
+$kind: http-request
+description: |-
+  BDD:
+  Dado que el cliente tiene un deposito a plazo vigente
+  Cuando cancela el deposito antes de la fecha de vencimiento
+  Entonces el sistema procesa la cancelacion anticipada
+  Y acredita el capital mas los intereses prorrateados en la cuenta del cliente.
+url: "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}/cancelar"
+method: POST
+headers:
+  x-api-key: "{{apiKey}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('La cancelacion anticipada se procesa correctamente', function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test('Se cancela el deposito solicitado', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data.id).to.eql(Number(pm.variables.get('depositoVigenteId')));
+      });
+
+      pm.test('El deposito queda en estado cancelado', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data.estado).to.eql('cancelado');
+      });
+
+      pm.test('La respuesta contiene el capital del deposito', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data).to.have.property('monto');
+          pm.expect(Number(jsonData.data.monto)).to.be.at.least(0);
+      });
+
+      pm.test('La respuesta contiene los intereses generados', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data).to.have.property('interes_generado');
+          pm.expect(Number(jsonData.data.interes_generado)).to.be.at.least(0);
+      });
+
+      pm.test('La respuesta contiene los dias transcurridos', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data).to.have.property('dias_transcurridos');
+          pm.expect(Number(jsonData.data.dias_transcurridos)).to.be.at.least(0);
+      });
+
+      pm.test('La cuenta del cliente recibe el resultado de la cancelacion', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data).to.have.property('cuenta');
+          pm.expect(jsonData.data.cuenta).to.have.property('saldo');
+          pm.expect(Number(jsonData.data.cuenta.saldo)).to.be.at.least(0);
+      });
+
+      pm.test('El tiempo de respuesta es menor a 3000 ms', function () {
+          pm.expect(pm.response.responseTime).to.be.below(3000);
+      });
+    language: text/javascript
+order: 4000
