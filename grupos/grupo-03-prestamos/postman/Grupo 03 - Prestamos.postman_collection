@@ -1,0 +1,270 @@
+{
+  "info": {
+    "_postman_id": "80837951-959e-40d4-a486-644b871bc06b",
+    "name": "Grupo 03 - Prestamos",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12455344"
+  },
+  "item": [
+    {
+      "name": "04 - Prestamo en mora",
+      "item": [
+        {
+          "name": "GET cuotas vencidas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code es 200', function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test('Devuelve al menos una cuota vencida', function () {\r\n    var jsonData = pm.response.json();\r\n    pm.expect(jsonData.data.length).to.be.above(0);\r\n});\r\n\r\npm.test('Todas las cuotas devueltas están en estado vencida', function () {\r\n    var jsonData = pm.response.json();\r\n    jsonData.data.forEach(function (cuota) {\r\n        pm.expect(cuota.estado).to.eql('vencida');\r\n    });\r\n});\r\n\r\npm.test('Las cuotas vencidas no tienen fecha de pago registrada', function () {\r\n    var jsonData = pm.response.json();\r\n    jsonData.data.forEach(function (cuota) {\r\n        pm.expect(cuota.fecha_pago).to.be.null;\r\n    });\r\n});\r\n\r\npm.test('Tiempo de respuesta menor a 3000ms', function () {\r\n    pm.expect(pm.response.responseTime).to.be.below(3000);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "",
+                "value": ""
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_id_mora}}/cuotas?estado=vencida",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos",
+                "{{prestamo_id_mora}}",
+                "cuotas"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "vencida"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"montoSolicitado\": 1000000,\r\n  \"plazoMeses\": 12,\r\n  \"tasaInteres\": 10,\r\n  \"usuarioId\": 1,\r\n  \"cuentaId\": 1\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/prestamos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "New Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"El préstamo aprobado no puede modificarse\", function () {\r\n    pm.response.to.have.status(409);\r\n});\r\n\r\npm.test(\"El código de error es CONFLICT\", function () {\r\n    const jsonData = pm.response.json();\r\n\r\n    pm.expect(jsonData.error.code).to.eql(\"CONFLICT\");\r\n});\r\n\r\npm.test(\"El mensaje indica que el préstamo aprobado no puede modificarse\", function () {\r\n    const jsonData = pm.response.json();\r\n\r\n    pm.expect(jsonData.error.message)\r\n        .to.eql(\"Un préstamo en estado 'aprobado' ya no puede modificarse.\");\r\n});\r\n\r\npm.test(\"Response time is less than 3000ms\", function () {\r\n    pm.expect(pm.response.responseTime).to.be.below(3000);\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "id",
+            "value": "3"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"montoSolicitado\": 2000000,\r\n  \"plazoMeses\": 12,\r\n  \"tasaInteres\": 10\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/prestamos/{id}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "prestamos",
+            "{id}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "prestamos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// ── Shared helpers ──────────────────────────────────────────────\nconst status = pm.response.status;\nconst code   = pm.response.code;\nlet jsonData;\n\npm.test(\"Response is valid JSON\", function () {\n    jsonData = pm.response.json();\n});\n\n// ── 2xx – Success shape ─────────────────────────────────────────\nif (code >= 200 && code <= 299) {\n    pm.test(\"Status code is 2xx\", function () {\n        pm.response.to.have.status(code);\n        pm.expect(code).to.be.within(200, 299);\n    });\n\n    const requiredFields = [\"usuarioId\", \"cuentaId\", \"montoSolicitado\", \"plazoMeses\", \"tasaInteres\"];\n    requiredFields.forEach(function(field) {\n        pm.test(\"Response body has field: \" + field, function () {\n            pm.expect(jsonData).to.have.property(field);\n        });\n    });\n\n    pm.test(\"montoSolicitado matches request value\", function () {\n        pm.expect(jsonData.montoSolicitado).to.eql(1000000);\n    });\n\n    pm.test(\"plazoMeses matches request value\", function () {\n        pm.expect(jsonData.plazoMeses).to.eql(1);\n    });\n\n    pm.test(\"Response contains an identifier field (id or prestamoId)\", function () {\n        const hasId = jsonData.hasOwnProperty(\"id\") || jsonData.hasOwnProperty(\"prestamoId\");\n        pm.expect(hasId, \"Expected 'id' or 'prestamoId' in response\").to.be.true;\n    });\n\n    pm.test(\"Response contains a status field (estado or status)\", function () {\n        const hasStatus = jsonData.hasOwnProperty(\"estado\") || jsonData.hasOwnProperty(\"status\");\n        pm.expect(hasStatus, \"Expected 'estado' or 'status' in response\").to.be.true;\n    });\n}\n\n// ── 4xx – Error body assertions ─────────────────────────────────\nif (code >= 400 && code <= 499) {\n    pm.test(\"Status code is 4xx\", function () {\n        pm.expect(code).to.be.within(400, 499);\n    });\n\n    pm.test(\"Error response contains a meaningful error description\", function () {\n        const hasError =\n            jsonData.hasOwnProperty(\"error\")   ||\n            jsonData.hasOwnProperty(\"message\") ||\n            jsonData.hasOwnProperty(\"errors\")  ||\n            jsonData.hasOwnProperty(\"detail\");\n        pm.expect(hasError, \"Expected at least one of: error, message, errors, detail\").to.be.true;\n    });\n\n    pm.test(\"Error description is non-empty\", function () {\n        const desc = jsonData.error || jsonData.message || jsonData.detail ||\n                     (Array.isArray(jsonData.errors) ? jsonData.errors[0] : jsonData.errors);\n        pm.expect(desc).to.not.be.undefined;\n        pm.expect(desc).to.not.be.null;\n        if (typeof desc === \"string\") {\n            pm.expect(desc.trim().length).to.be.above(0);\n        }\n    });\n\n    if (code === 400 || code === 422) {\n        pm.test(\"400/422: error relates to montoSolicitado=0 or missing plazoMeses\", function () {\n            const bodyStr = JSON.stringify(jsonData).toLowerCase();\n            const mentionsField =\n                bodyStr.includes(\"montosolicitado\") ||\n                bodyStr.includes(\"monto\")           ||\n                bodyStr.includes(\"plazomeses\")      ||\n                bodyStr.includes(\"plazo\")           ||\n                bodyStr.includes(\"required\")        ||\n                bodyStr.includes(\"invalid\")         ||\n                bodyStr.includes(\"requerido\")       ||\n                bodyStr.includes(\"inválido\");\n            pm.expect(mentionsField, \"Error body should mention the offending field or validation rule\").to.be.true;\n        });\n    }\n}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "sbx_c2_demo_334993ffb9d684b17c116367"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"usuarioId\": 1,\r\n  \"cuentaId\": 1,\r\n  \"montoSolicitado\": 1000000,\r\n  \"tasaInteres\": 0,\r\n  \"plazoMeses\": 1\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/prestamos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "prestamos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "https://aiquaa-sandbox-api.vercel.app/api/v2/prestamos/1",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "YOUR_SECRET_TOKEN"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"montoSolicitado\": 1,\r\n  \"tasaInteres\": 0,\r\n  \"plazoMeses\": 1\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://aiquaa-sandbox-api.vercel.app/api/v2/prestamos/1",
+          "protocol": "https",
+          "host": [
+            "aiquaa-sandbox-api",
+            "vercel",
+            "app"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "prestamos",
+            "1"
+          ]
+        },
+        "description": "Generated from cURL: curl https://aiquaa-sandbox-api.vercel.app/api/v2/prestamos/1 \\\r\n  --request PUT \\\r\n  --header 'Content-Type: application/json' \\\r\n  --header 'x-api-key: YOUR_SECRET_TOKEN' \\\r\n  --data '{\r\n  \"montoSolicitado\": 1,\r\n  \"tasaInteres\": 0,\r\n  \"plazoMeses\": 1\r\n}''"
+      },
+      "response": []
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": ""
+    },
+    {
+      "key": "prestamo_id_mora",
+      "value": ""
+    },
+    {
+      "key": "api_key",
+      "value": ""
+    }
+  ]
+}

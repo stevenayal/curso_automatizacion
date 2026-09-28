@@ -1,0 +1,58 @@
+$kind: http-request
+name: Escenario 5 - Obtener plan de ahorro por id
+description: ""
+url: https://aiquaa-sandbox-api.vercel.app/api/v2/ahorros/1
+method: GET
+headers:
+  x-api-key: "{{apiKey}}"
+body:
+  type: json
+  content: ""
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: sbx_c2_demo_334993ffb9d684b17c116367
+scripts:
+  - type: afterResponse
+    code: "// Escenario 4: Obtener plan de ahorro por ID\r
+
+      \r
+
+      // Validar código HTTP\r
+
+      pm.test(\"La consulta devuelve el código 200\", function () {\r
+
+      \    pm.response.to.have.status(200);\r
+
+      });\r
+
+      \r
+
+      // Validar que la respuesta sea JSON\r
+
+      pm.test(\"La respuesta tiene formato JSON\", function () {\r
+
+      \    pm.response.to.be.json;\r
+
+      });\r
+
+      \r
+
+      // Validar que el ID consultado sea el correcto\r
+
+      pm.test(\"El ID del plan de ahorro es correcto\", function () {\r
+
+      \r
+
+      \    const response = pm.response.json();\r
+
+      \r
+
+      \    pm.expect(response.id).to.eql(1);\r
+
+      \r
+
+      });"
+    language: text/javascript
+order: 2216529069874471

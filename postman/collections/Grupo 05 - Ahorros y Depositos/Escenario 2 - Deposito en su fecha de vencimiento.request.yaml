@@ -1,0 +1,32 @@
+$kind: http-request
+description: |-
+  BDD:
+  Dado que el cliente tiene un deposito que vence hoy
+  Cuando consulta el estado de ese deposito
+  Entonces el sistema lo muestra como vencido y con los intereses acreditados.
+url: "{{baseUrl}}/api/v2/depositos/{{depositoVencidoId}}"
+method: GET
+headers:
+  x-api-key: "{{apiKey}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El status es 200', function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test('El deposito esta vencido', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data.estado).to.eql('vencido');
+      });
+
+      pm.test('La respuesta muestra los intereses generados', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data).to.have.property('interes_generado');
+      });
+
+      pm.test('El tiempo de respuesta es menor a 3000 ms', function () {
+          pm.expect(pm.response.responseTime).to.be.below(3000);
+      });
+    language: text/javascript
+order: 2000
