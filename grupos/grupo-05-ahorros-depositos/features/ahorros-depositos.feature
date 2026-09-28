@@ -58,3 +58,24 @@ Característica: Ahorros y depósitos
     Cuando intenta constituir un depósito a plazo
     Entonces el sistema rechaza la operación
     Y el depósito no es generado
+
+  @negativo
+  Escenario: Consulta de un depósito a plazo inexistente
+    Dado que el cliente está autenticado
+    Cuando consulta un depósito a plazo que no existe
+    Entonces el sistema responde que el depósito no fue encontrado
+
+  @negativo
+  Escenario: Constituir un depósito con un plazo no permitido
+    Dado que el cliente tiene una cuenta de ahorro activa con saldo suficiente
+    Cuando intenta constituir un depósito a plazo por un plazo no ofrecido por el banco
+    Entonces el sistema rechaza la operación
+    Y el depósito no es generado
+
+  @edge-case
+  Escenario: Constituir un depósito por el total del saldo disponible
+    Dado que el cliente tiene una cuenta de ahorro activa
+    Y el saldo disponible es igual al importe del depósito
+    Cuando constituye el depósito a plazo
+    Entonces el sistema registra el depósito correctamente
+    Y el saldo disponible de la cuenta queda en cero

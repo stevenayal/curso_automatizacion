@@ -288,6 +288,256 @@
         "description": "BDD:\nDado que existe un plan de ahorro registrado\nCuando el cliente consulta el plan de ahorro por su ID\nEntonces el sistema devuelve la información del plan solicitado."
       },
       "response": []
+    },
+    {
+      "name": "Escenario 6 - Consultar deposito a plazo inexistente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('La respuesta indica que el recurso no fue encontrado', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('error');",
+              "    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+              "});",
+              "pm.test('La respuesta no devuelve datos de deposito', function () {",
+              "    pm.expect(pm.response.json()).to.not.have.property('data');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoInexistenteId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoInexistenteId}}"
+          ]
+        },
+        "description": "BDD: Dado que el cliente esta autenticado; cuando consulta un deposito a plazo que no existe; entonces el sistema responde que el deposito no fue encontrado. Autora: jesescobar."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 7 - Constituir deposito con un plazo no permitido",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Consulta de solo lectura al sandbox SQL (v2). Se declara aca y no en la",
+              "// coleccion para no modificar la configuracion compartida del grupo.",
+              "const sqlSelect = (sql, params) => ({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/api/v2/sql/select',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json', 'x-api-key': pm.collectionVariables.get('apiKey') },",
+              "    body: { mode: 'raw', raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+              "});",
+              "",
+              "// Precondicion: cuenta cuantos depositos tiene la cuenta antes del POST,",
+              "// para confirmar despues que no se genero ninguno nuevo.",
+              "pm.sendRequest(sqlSelect('SELECT COUNT(*) AS total FROM depositos WHERE cuenta_id = $1', [Number(pm.collectionVariables.get('cuentaId'))]), function (err, res) {",
+              "    if (err) { console.error('Pre-request SQL check fallo:', err); return; }",
+              "    const total = Number(res.json().data[0].total);",
+              "    pm.collectionVariables.set('depositosAntesPlazoInvalido', total);",
+              "    console.log('Depositos de la cuenta antes del POST:', total);",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Consulta de solo lectura al sandbox SQL (v2). Se declara aca y no en la",
+              "// coleccion para no modificar la configuracion compartida del grupo.",
+              "const sqlSelect = (sql, params) => ({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/api/v2/sql/select',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json', 'x-api-key': pm.collectionVariables.get('apiKey') },",
+              "    body: { mode: 'raw', raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+              "});",
+              "",
+              "pm.test('La operacion es rechazada con status 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('El error es de validacion', function () {",
+              "    pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request: relee la BD para confirmar que el deposito no fue generado.",
+              "pm.sendRequest(sqlSelect('SELECT COUNT(*) AS total FROM depositos WHERE cuenta_id = $1', [Number(pm.collectionVariables.get('cuentaId'))]), function (err, res) {",
+              "    pm.test('La BD confirma que el deposito no es generado', function () {",
+              "        if (err) throw err;",
+              "        const antes = Number(pm.collectionVariables.get('depositosAntesPlazoInvalido'));",
+              "        pm.expect(Number(res.json().data[0].total)).to.eql(antes);",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: Dado que el cliente tiene una cuenta de ahorro activa con saldo suficiente; cuando intenta constituir un deposito por un plazo no ofrecido por el banco; entonces el sistema rechaza la operacion y el deposito no es generado. Segun la documentacion, plazoDias admite de 30 a 1095 dias. Autora: jesescobar.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"cuentaId\": {{cuentaId}},\n  \"monto\": 1000,\n  \"plazoDias\": {{plazoDiasInvalido}},\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 8 - Constituir deposito por el total del saldo disponible",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Consulta de solo lectura al sandbox SQL (v2). Se declara aca y no en la",
+              "// coleccion para no modificar la configuracion compartida del grupo.",
+              "const sqlSelect = (sql, params) => ({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/api/v2/sql/select',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json', 'x-api-key': pm.collectionVariables.get('apiKey') },",
+              "    body: { mode: 'raw', raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+              "});",
+              "",
+              "// Precondicion: lee el saldo de la cuenta de prueba y lo usa como monto del",
+              "// deposito. Usa una cuenta propia (cuentaSaldoTotalId) para no vaciar la",
+              "// cuenta que usan los demas escenarios.",
+              "const cuentaSaldoTotalId = pm.collectionVariables.get('cuentaSaldoTotalId');",
+              "if (!cuentaSaldoTotalId) {",
+              "    console.error('Configurar la variable cuentaSaldoTotalId con una cuenta de prueba descartable.');",
+              "} else {",
+              "    pm.sendRequest(sqlSelect('SELECT id, usuario_id, saldo FROM cuentas WHERE id = $1', [Number(cuentaSaldoTotalId)]), function (err, res) {",
+              "        if (err) { console.error('Pre-request SQL check fallo:', err); return; }",
+              "        const cuenta = res.json().data[0];",
+              "        if (!cuenta || Number(cuenta.saldo) <= 0) {",
+              "            console.error('La cuenta de prueba no existe o no tiene saldo disponible.');",
+              "            return;",
+              "        }",
+              "        pm.collectionVariables.set('usuarioSaldoTotalId', cuenta.usuario_id);",
+              "        pm.collectionVariables.set('montoSaldoTotal', Number(cuenta.saldo));",
+              "        console.log('Saldo disponible antes del deposito:', cuenta.saldo);",
+              "    });",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Consulta de solo lectura al sandbox SQL (v2). Se declara aca y no en la",
+              "// coleccion para no modificar la configuracion compartida del grupo.",
+              "const sqlSelect = (sql, params) => ({",
+              "    url: pm.collectionVariables.get('baseUrl') + '/api/v2/sql/select',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json', 'x-api-key': pm.collectionVariables.get('apiKey') },",
+              "    body: { mode: 'raw', raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+              "});",
+              "",
+              "pm.test('El deposito se registra con status 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('El deposito se registra por el total del saldo disponible', function () {",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(Number(data.monto)).to.eql(Number(pm.collectionVariables.get('montoSaldoTotal')));",
+              "    pm.expect(data.estado).to.eql('activo');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request: relee la BD para confirmar que la cuenta quedo en cero.",
+              "pm.sendRequest(sqlSelect('SELECT saldo FROM cuentas WHERE id = $1', [Number(pm.collectionVariables.get('cuentaSaldoTotalId'))]), function (err, res) {",
+              "    pm.test('La BD confirma que el saldo disponible queda en cero', function () {",
+              "        if (err) throw err;",
+              "        pm.expect(Number(res.json().data[0].saldo)).to.eql(0);",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: Dado que el cliente tiene una cuenta de ahorro activa y el saldo disponible es igual al importe del deposito; cuando constituye el deposito a plazo; entonces el sistema registra el deposito y el saldo disponible queda en cero. ATENCION: deja la cuenta en saldo cero; usar solo una cuenta de prueba descartable en cuentaSaldoTotalId. Autora: jesescobar.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioSaldoTotalId}},\n  \"cuentaId\": {{cuentaSaldoTotalId}},\n  \"monto\": {{montoSaldoTotal}},\n  \"plazoDias\": 30,\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
     }
   ],
   "variable": [
@@ -318,6 +568,30 @@
     {
       "key": "ahorroId",
       "value": "1"
+    },
+    {
+      "key": "depositoInexistenteId",
+      "value": "999999"
+    },
+    {
+      "key": "plazoDiasInvalido",
+      "value": "15"
+    },
+    {
+      "key": "cuentaSaldoTotalId",
+      "value": ""
+    },
+    {
+      "key": "usuarioSaldoTotalId",
+      "value": ""
+    },
+    {
+      "key": "montoSaldoTotal",
+      "value": ""
+    },
+    {
+      "key": "depositosAntesPlazoInvalido",
+      "value": ""
     }
   ]
 }
