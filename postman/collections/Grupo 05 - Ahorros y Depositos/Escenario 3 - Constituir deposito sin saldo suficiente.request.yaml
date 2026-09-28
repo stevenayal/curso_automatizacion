@@ -1,0 +1,37 @@
+$kind: http-request
+description: |-
+  BDD:
+  Dado que el cliente tiene una cuenta de ahorro activa
+  Y el saldo disponible es menor al importe del deposito
+  Cuando intenta constituir un deposito a plazo
+  Entonces el sistema rechaza la operacion
+  Y el deposito no es generado.
+
+  Se usa un monto muy alto para provocar saldo insuficiente.
+url: "{{baseUrl}}/api/v2/depositos"
+method: POST
+headers:
+  x-api-key: "{{apiKey}}"
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+        "usuarioId": {{usuarioId}},
+        "cuentaId": {{cuentaId}},
+        "monto": 999999999999,
+        "plazoDias": 30,
+        "tasaAnual": 10
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('La operacion es rechazada con status 409', function () {
+          pm.response.to.have.status(409);
+      });
+
+      pm.test('El tiempo de respuesta es menor a 3000 ms', function () {
+          pm.expect(pm.response.responseTime).to.be.below(3000);
+      });
+    language: text/javascript
+order: 3000

@@ -1,0 +1,155 @@
+{
+  "info": {
+    "_postman_id": "8d74207c-0b09-4d71-9e28-de5658d50346",
+    "name": "CIT Automatizacion -Aiquaa Sandbox API v2 - Grupo2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "38723202"
+  },
+  "item": [
+    {
+      "name": "Listar tarjetas",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response is valid JSON\", function () {\n    pm.response.to.be.json;\n});\n\npm.test(\"Response has data array\", function () {\n    const jsonData = pm.response.json();\n    pm.expect(jsonData).to.have.property('data');\n    pm.expect(jsonData.data).to.be.an('array');\n});\n\nconst response = pm.response.json();\nconst tipo = response.data[0].tipo;\npm.environment.set(\"tipo\", tipo);\nconsole.log(\"transferId guardado:\", tipo);\n\npm.test(\"tiene el valor de credito\", function () {\n    const body = pm.response.json();\n    pm.expect(body.data[0].tipo).to.eql('credito');\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{x-api-key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{UrlAiquaa}}/api/v2/tarjetas",
+          "host": [
+            "{{UrlAiquaa}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "tarjetas"
+          ]
+        },
+        "description": "Generated from cURL: curl https://aiquaa-sandbox-api.vercel.app/api/v2/tarjetas \\\r\n  --header 'x-api-key: sbx_c2_demo_334993ffb9d684b17c116367'"
+      },
+      "response": []
+    },
+    {
+      "name": "Emitir tarjeta",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {\n    pm.response.to.have.status(201);\n});\n\npm.test(\"Response time is less than 1000ms\", function () {\n    pm.expect(pm.response.responseTime).to.be.below(1000);\n});\n\npm.test(\"Responde en formato Json\", function () {\n    pm.response.to.be.json;\n    pm.response.to.have.jsonBody(\"data\");\n});\n\npm.test(\"Datos de las Tarjeta\", function () {\n    const jsonData = pm.response.json();\n    pm.expect(jsonData.data).to.have.property(\"id\");\n    pm.expect(jsonData.data).to.have.property(\"tipo\", \"credito\");\n    pm.expect(jsonData.data).to.have.property(\"estado\", \"activa\");\n    pm.expect(jsonData.data).to.have.property(\"activo\", true);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{x-api-key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"usuarioId\": 1,\r\n  \"cuentaId\": 1,\r\n  \"tipo\": \"credito\",\r\n  \"marca\": \"visa\",\r\n  \"limiteCredito\": 0,\r\n  \"fechaVencimiento\": \"2029-12-31\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{UrlAiquaa}}/api/v2/tarjetas",
+          "host": [
+            "{{UrlAiquaa}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "tarjetas"
+          ]
+        },
+        "description": "Generated from cURL: curl https://aiquaa-sandbox-api.vercel.app/api/v2/tarjetas \\\r\n  --request POST \\\r\n  --header 'Content-Type: application/json' \\\r\n  --header 'x-api-key: sbx_c2_demo_334993ffb9d684b17c116367' \\\r\n  --data '{\r\n  \"usuarioId\": 1,\r\n  \"cuentaId\": 1,\r\n  \"tipo\": \"credito\",\r\n  \"marca\": \"visa\",\r\n  \"limiteCredito\": 0,\r\n  \"fechaVencimiento\": \"2029-12-31\"\r\n}'"
+      },
+      "response": []
+    },
+    {
+      "name": "Reemplazar Marca",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response time is less than 1000ms\", function () {\n    pm.expect(pm.response.responseTime).to.be.below(1000);\n});\n\npm.test(\"Content-Type is application/json\", function () {\n    pm.response.to.have.header(\"Content-Type\");\n    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\n});\n\npm.test(\"Response body contains expected data\", function () {\n    const jsonData = pm.response.json();\n    pm.expect(jsonData).to.have.property(\"data\");\n    pm.expect(jsonData.data).to.have.property(\"id\");\n    pm.expect(jsonData.data).to.have.property(\"marca\", \"visa\");\n    pm.expect(jsonData.data).to.have.property(\"estado\", \"activa\");\n});\n\nconst response = pm.response.json();\n\nconst tipo = response.data.tipo;\npm.environment.set(\"tipo\", tipo);\nconsole.log(\"tipo guardado:\", tipo);\n\npm.test(\"tiene el valor de credito\", function () {\n    const body = pm.response.json();\n    pm.expect(body.data.tipo).to.eql(\"credito\");\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{x-api-key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"marca\": \"visa\",\r\n  \"fechaVencimiento\": \"2026-09-20\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{UrlAiquaa}}/api/v2/tarjetas/1",
+          "host": [
+            "{{UrlAiquaa}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "tarjetas",
+            "1"
+          ]
+        },
+        "description": "Generated from cURL: curl https://aiquaa-sandbox-api.vercel.app/api/v2/tarjetas/1 \\\r\n  --request PUT \\\r\n  --header 'Content-Type: application/json' \\\r\n  --header 'x-api-key: YOUR_SECRET_TOKEN' \\\r\n  --data '{\r\n  \"marca\": \"visa\",\r\n  \"fechaVencimiento\": \"\"\r\n}'"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "UrlAiquaa",
+      "value": ""
+    },
+    {
+      "key": "x-api-key",
+      "value": ""
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+$kind: http-request
+description: |-
+  BDD:
+  Dado que el cliente tiene un deposito a plazo vigente
+  Cuando consulta el detalle de ese deposito
+  Entonces el sistema devuelve el capital, la tasa y la fecha de vencimiento.
+url: "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}?="
+method: GET
+headers:
+  x-api-key: "{{apiKey}}"
+queryParams:
+  "": ""
+auth:
+  type: apikey
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El status es 200', function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta tiene los datos del deposito', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data).to.have.property('monto');
+          pm.expect(jsonData.data).to.have.property('tasa_anual');
+          pm.expect(jsonData.data).to.have.property('fecha_vencimiento');
+      });
+
+      pm.test('El deposito esta activo', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.data.estado).to.eql('activo');
+      });
+
+      pm.test('El tiempo de respuesta es menor a 3000 ms', function () {
+          pm.expect(pm.response.responseTime).to.be.below(3000);
+      });
+    language: text/javascript
+order: 1000
