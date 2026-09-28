@@ -1,0 +1,119 @@
+{
+  "info": {
+    "_postman_id": "a2c36bf1-33a1-4a17-94e6-8768edb25cf3",
+    "name": "CIT Automatizacion - Aiquaa Sandbox API v2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "13451936",
+    "_collection_link": "https://go.postman.co/collection/13451936-a2c36bf1-33a1-4a17-94e6-8768edb25cf3?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Select",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response time is less than 1000ms\", function () {\n    pm.expect(pm.response.responseTime).to.be.below(1000);\n});\n\npm.test(\"Response has data array\", function () {\n    const jsonData = pm.response.json();\n    pm.expect(jsonData).to.have.property('data');\n    pm.expect(jsonData.data).to.be.an('array');\n});\n\npm.test(\"Response contains rowCount\", function () {\n    const jsonData = pm.response.json();\n    pm.expect(jsonData).to.have.property('rowCount');\n    pm.expect(jsonData.rowCount).to.be.a('number');\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{x-api-key-v2}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"sql\": \"select * from qa_training_v2.cuentas c \",\r\n  \"params\": []\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select",
+          "protocol": "https",
+          "host": [
+            "aiquaa-sandbox-api",
+            "vercel",
+            "app"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "sql",
+            "select"
+          ]
+        },
+        "description": "Generated from cURL: curl https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select \\\r\n  --request POST \\\r\n  --header 'Content-Type: application/json' \\\r\n  --header 'x-api-key: YOUR_SECRET_TOKEN' \\\r\n  --data '{\r\n  \"sql\": \"\",\r\n  \"params\": []\r\n}'"
+      },
+      "response": []
+    },
+    {
+      "name": "Obtener Prestamos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response time is less than 1000ms\", function () {\n    pm.expect(pm.response.responseTime).to.be.below(1000);\n});\n\npm.test(\"Response has a data array\", function () {\n    const jsonData = pm.response.json();\n    pm.expect(jsonData).to.have.property('data');\n    pm.expect(jsonData.data).to.be.an('array');\n});\n\npm.test(\"Loan objects have required fields\", function () {\n    const jsonData = pm.response.json();\n    if (jsonData.data.length > 0) {\n        const loan = jsonData.data[0];\n        pm.expect(loan).to.have.property('id');\n        pm.expect(loan).to.have.property('monto_solicitado');\n        pm.expect(loan).to.have.property('estado');\n    }\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://aiquaa-sandbox-api.vercel.app/api/v2/prestamos",
+          "protocol": "https",
+          "host": [
+            "aiquaa-sandbox-api",
+            "vercel",
+            "app"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "prestamos"
+          ]
+        },
+        "description": "Generated from cURL: curl https://aiquaa-sandbox-api.vercel.app/api/v2/prestamos \\\r\n  --header 'x-api-key: YOUR_SECRET_TOKEN'"
+      },
+      "response": []
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{x-api-key-v2}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "x-api-key-v2",
+      "value": ""
+    }
+  ]
+}
