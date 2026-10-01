@@ -8,6 +8,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
     "test:api": "newman run \"postman/aiquaa Sandbox API.json\" -e postman/local.postman_environment.json",
+    "test:practica": "newman run \"postman/practica/Practica - Sandbox API v2.postman_collection.json\" -e postman/practica/practica-v2.postman_environment.json --env-var \"apiKey=$API_KEY\" --delay-request 2500",
     "test:bdd": "cucumber-js",
     "smoke": "playwright test tests/e2e/smoke.spec.ts",
     "verify": "npm run test:bdd && npm run test:e2e"
