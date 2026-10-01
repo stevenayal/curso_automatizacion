@@ -1,0 +1,50 @@
+name: Grupo 03 - Prestamos API
+
+on:
+  pull_request:
+    paths:
+      - 'grupos/grupo-03-prestamos/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/grupo-03-prestamos.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'grupos/grupo-03-prestamos/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/grupo-03-prestamos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  newman:
+    name: Newman API y reportes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar coleccion de prestamos
+        run: npm run test:api:grupo-03 -- --env-var "api_key=${{ secrets.AIQUAA_API_KEY }}"
+
+      - name: Publicar reportes Newman
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grupo-03-prestamos-newman-reportes
+          path: newman/grupo-03/
+          if-no-files-found: warn
+          retention-days: 14
