@@ -1,0 +1,46 @@
+{
+	"id": "472ac623-16ee-48b7-a30f-373a0b632f39",
+	"name": "UNA CIT",
+	"values": [
+		{
+			"key": "x-api-key",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "x-api-key-v2",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "base_url",
+			"value": "https://aiquaa-sandbox-api.vercel.app",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "api_key",
+			"value": "sbx_c2_demo_334993ffb9d684b17c116367",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "prestamo_id_mora",
+			"value": "2",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "id_cuenta",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		}
+	],
+	"color": null,
+	"_postman_variable_scope": "environment",
+	"_postman_exported_at": "2026-10-01T23:27:52.550Z",
+	"_postman_exported_using": "Postman/12.29.0"
+}
