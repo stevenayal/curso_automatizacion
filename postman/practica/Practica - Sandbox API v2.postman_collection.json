@@ -1,0 +1,1949 @@
+{
+  "info": {
+    "_postman_id": "fd547dae-8378-58d1-9e81-3aed09c59d33",
+    "name": "Practica - Sandbox API v2 (Productos Bancarios)",
+    "description": "Coleccion de practica para el curso. Recorre de a poco los conceptos de testing de APIs\ncon Postman sobre el sandbox del **curso 2** (`/api/v2`):\n\n| Carpeta | Que se practica |\n|---|---|\n| 00 | Datos dinamicos y variables de coleccion |\n| 01 | GET, status, estructura, JSON Schema, query params, encadenamiento |\n| 02 | Casos negativos (401, 404, 400, 409) |\n| 03 | CRUD y reglas de negocio de una cuenta |\n| 04 | Flujo E2E con validacion SQL (pre-request / post-response) |\n| 05 | Transiciones de estado (PATCH) |\n| 06 | **Ejercicios** para completar |\n| 99 | Limpieza de los datos creados |\n\n**Antes de empezar:** importar tambien el environment `Practica - Sandbox v2` y cargar la\n`apiKey` que entrega el docente. La key **nunca** se guarda en la coleccion ni se commitea.\n\n**Rate limit:** 30 requests/minuto por key. En el Runner usar un *delay* de 2500 ms.\n\nVer `postman/practica/README.md` para mas detalle.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// ---------------------------------------------------------------------------",
+          "// Pre-request de COLECCION: corre antes de CADA request.",
+          "// ---------------------------------------------------------------------------",
+          "if (!pm.variables.get('apiKey')) {",
+          "    throw new Error('Falta la variable apiKey. Cargala en el environment \"Practica - Sandbox v2\" (nunca en la coleccion).');",
+          "}",
+          "",
+          "// Guardamos una funcion reutilizable para consultar la base via /api/v2/sql/select.",
+          "// Uso en cualquier script:  const sqlSelect = eval(pm.collectionVariables.get('sqlSelect'));",
+          "pm.collectionVariables.set('sqlSelect', `(function (sql, params, cb) {",
+          "    pm.sendRequest({",
+          "        url: pm.variables.get('baseUrl') + '/api/v2/sql/select',",
+          "        method: 'POST',",
+          "        header: { 'x-api-key': pm.variables.get('apiKey'), 'Content-Type': 'application/json' },",
+          "        body: { mode: 'raw', raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+          "    }, function (err, res) {",
+          "        if (err) { return cb(err); }",
+          "        if (res.code !== 200) { return cb(new Error('SQL ' + res.code + ': ' + res.text())); }",
+          "        cb(null, res.json().data);",
+          "    });",
+          "})`);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Test de COLECCION: se ejecuta despues de CADA request.",
+          "pm.test('[global] responde en menos de 5 s', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "pm.test('[global] no excedimos el rate limit (429)', function () {",
+          "    pm.expect(pm.response.code, 'Bajá el ritmo: correr con --delay-request 2500').to.not.eql(429);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://aiquaa-sandbox-api.vercel.app",
+      "type": "string"
+    },
+    {
+      "key": "montoDeposito",
+      "value": "100000",
+      "type": "string"
+    },
+    {
+      "key": "montoTransferencia",
+      "value": "30000",
+      "type": "string"
+    },
+    {
+      "key": "usuarioId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "usuarioEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "usuarioDocumento",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaEjemploId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaOrigenId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaDestinoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transferenciaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saldoOrigenAntes",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saldoDestinoAntes",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saldoARetirar",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tarjetaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "prestamoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sqlSelect",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Preparacion",
+      "description": "Crea un usuario propio para la practica. Todo lo que se crea despues cuelga de este usuario,\nasi cada corrida trabaja con datos nuevos y no pisa los de otros compañeros.\n\n**Conceptos:** variables dinamicas (`Date.now()`), `pm.collectionVariables.set`.",
+      "item": [
+        {
+          "name": "Crear usuario de practica",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "usuarios"
+              ]
+            },
+            "description": "El pre-request arma un email y un documento unicos con `Date.now()` para que el POST no choque\ncon el `409` de email duplicado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Estudiante Practica\",\n  \"email\": \"{{usuarioEmail}}\",\n  \"documentoTipo\": \"CI\",\n  \"documentoNumero\": \"{{usuarioDocumento}}\",\n  \"telefono\": \"0981000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const sufijo = Date.now();",
+                  "pm.collectionVariables.set('usuarioEmail', `practica.${sufijo}@test.com`);",
+                  "pm.collectionVariables.set('usuarioDocumento', `PR${sufijo}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "",
+                  "const usuario = pm.response.json().data;",
+                  "",
+                  "pm.test('El usuario devuelto tiene los datos enviados', () => {",
+                  "    pm.expect(usuario.email).to.eql(pm.collectionVariables.get('usuarioEmail'));",
+                  "    pm.expect(usuario.documento_numero).to.eql(pm.collectionVariables.get('usuarioDocumento'));",
+                  "    pm.expect(usuario.activo).to.be.true;",
+                  "});",
+                  "",
+                  "// Guardamos el id para usarlo en el resto de la coleccion",
+                  "pm.collectionVariables.set('usuarioId', usuario.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Primeros pasos (GET)",
+      "description": "Lecturas basicas. Aprendemos a validar status, estructura del body, tipos de datos y a\nencadenar requests guardando valores de una respuesta para usarlos en la siguiente.\n\n**Conceptos:** `pm.response.to.have.status`, `pm.expect`, `jsonSchema`, query params, encadenamiento.",
+      "item": [
+        {
+          "name": "Listar cuentas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas"
+              ]
+            },
+            "description": "Lista todas las cuentas del sandbox. Guarda el id de la primera para el request siguiente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es JSON', () => pm.response.to.have.header('Content-Type', /application\\/json/));",
+                  "",
+                  "const cuentas = pm.response.json().data;",
+                  "",
+                  "pm.test('data es un array con al menos una cuenta', () => {",
+                  "    pm.expect(cuentas).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Cada cuenta tiene los campos obligatorios', () => {",
+                  "    cuentas.forEach(c => {",
+                  "        pm.expect(c).to.include.all.keys('id', 'usuario_id', 'numero_cuenta', 'tipo_cuenta', 'moneda', 'saldo', 'estado');",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('El saldo viene como string (numeric de Postgres)', () => {",
+                  "    pm.expect(cuentas[0].saldo).to.be.a('string').and.match(/^-?\\d+\\.\\d{2}$/);",
+                  "});",
+                  "",
+                  "// Encadenamiento: el siguiente request usa este id",
+                  "pm.collectionVariables.set('cuentaEjemploId', cuentas[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtrar cuentas activas en PYG (query params)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas?estado=activa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "activa"
+                }
+              ]
+            },
+            "description": "Usa el query param `estado`. Valida que el filtro realmente se aplique en TODOS los elementos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const cuentas = pm.response.json().data;",
+                  "",
+                  "pm.test('Todas las cuentas devueltas estan activas', () => {",
+                  "    cuentas.forEach(c => pm.expect(c.estado, `cuenta ${c.id}`).to.eql('activa'));",
+                  "});",
+                  "",
+                  "pm.test('La moneda es siempre PYG o USD', () => {",
+                  "    cuentas.forEach(c => pm.expect(c.moneda).to.be.oneOf(['PYG', 'USD']));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener cuenta por id (encadenado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaEjemploId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaEjemploId}}"
+              ]
+            },
+            "description": "Toma `cuentaEjemploId` que guardo el request anterior y valida la respuesta contra un JSON Schema."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const esquemaCuenta = {",
+                  "    type: 'object',",
+                  "    required: ['data'],",
+                  "    properties: {",
+                  "        data: {",
+                  "            type: 'object',",
+                  "            required: ['id', 'usuario_id', 'numero_cuenta', 'tipo_cuenta', 'moneda', 'saldo', 'estado', 'activa'],",
+                  "            properties: {",
+                  "                id: { type: 'integer' },",
+                  "                usuario_id: { type: 'integer' },",
+                  "                numero_cuenta: { type: 'string' },",
+                  "                tipo_cuenta: { enum: ['ahorro', 'corriente'] },",
+                  "                moneda: { enum: ['PYG', 'USD'] },",
+                  "                saldo: { type: 'string' },",
+                  "                estado: { enum: ['activa', 'bloqueada', 'cerrada'] },",
+                  "                activa: { type: 'boolean' }",
+                  "            }",
+                  "        }",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.test('La respuesta cumple el JSON Schema de Cuenta', () => {",
+                  "    pm.response.to.have.jsonSchema(esquemaCuenta);",
+                  "});",
+                  "",
+                  "pm.test('El id devuelto es el que pedimos', () => {",
+                  "    pm.expect(pm.response.json().data.id).to.eql(Number(pm.collectionVariables.get('cuentaEjemploId')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Casos negativos",
+      "description": "Un buen tester prueba tanto lo que debe funcionar como lo que debe fallar. Aca validamos que la\nAPI rechace correctamente y con el codigo de error adecuado.\n\n**Conceptos:** status 4xx, estructura `{ error: { code, message } }`, auth a nivel request.",
+      "item": [
+        {
+          "name": "Sin API key -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas"
+              ]
+            },
+            "description": "Este request pisa la auth de la coleccion con `No Auth`, asi no se manda `x-api-key`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(401, 'UNAUTHORIZED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API key invalida -> 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "sbx_esta_key_no_existe"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(401, 'UNAUTHORIZED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cuenta inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "999999"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(404, 'NOT_FOUND');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Id no numerico -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "abc"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(400, 'VALIDATION_ERROR');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tipo de cuenta invalido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas"
+              ]
+            },
+            "description": "`tipoCuenta` solo acepta `ahorro` o `corriente`. El detalle del error dice que opciones son validas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"tipoCuenta\": \"plazo_fijo\",\n  \"moneda\": \"PYG\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "",
+                  "assertError(400, 'VALIDATION_ERROR');",
+                  "pm.test('El detalle menciona las opciones validas', () => {",
+                  "    pm.expect(pm.response.json().error.details).to.include('ahorro').and.include('corriente');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Email duplicado -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "usuarios"
+              ]
+            },
+            "description": "Reusa el email del usuario creado en `00 - Preparacion`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Duplicado\",\n  \"email\": \"{{usuarioEmail}}\",\n  \"documentoNumero\": \"DUP{{$timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(409, 'CONFLICT');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - CRUD de cuenta",
+      "description": "Ciclo de vida de una cuenta propia: crear, leer, reemplazar y mover saldo.\n\n**Conceptos:** POST/GET/PUT, reglas de negocio (saldo insuficiente), variables de coleccion.",
+      "item": [
+        {
+          "name": "Abrir cuenta origen (PYG)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"tipoCuenta\": \"ahorro\",\n  \"moneda\": \"PYG\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const cuenta = pm.response.json().data;",
+                  "",
+                  "pm.test('La cuenta nace activa y con saldo 0', () => {",
+                  "    pm.expect(cuenta.estado).to.eql('activa');",
+                  "    pm.expect(cuenta.saldo).to.eql('0.00');",
+                  "});",
+                  "pm.test('Pertenece a nuestro usuario', () => {",
+                  "    pm.expect(cuenta.usuario_id).to.eql(Number(pm.collectionVariables.get('usuarioId')));",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('cuentaOrigenId', cuenta.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener cuenta creada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es la cuenta que creamos', () => {",
+                  "    const c = pm.response.json().data;",
+                  "    pm.expect(c.id).to.eql(Number(pm.collectionVariables.get('cuentaOrigenId')));",
+                  "    pm.expect(c.tipo_cuenta).to.eql('ahorro');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reemplazar cuenta (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}"
+              ]
+            },
+            "description": "PUT reemplaza tipo y moneda. El saldo y el estado NO se tocan por PUT.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoCuenta\": \"corriente\",\n  \"moneda\": \"PYG\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('tipo_cuenta cambio a corriente', () => pm.expect(pm.response.json().data.tipo_cuenta).to.eql('corriente'));",
+                  "pm.test('El saldo no cambio', () => pm.expect(pm.response.json().data.saldo).to.eql('0.00'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Depositar 100.000",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}/movimientos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}",
+                "movimientos"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"credito\",\n  \"monto\": {{montoDeposito}},\n  \"descripcion\": \"Deposito inicial - practica\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const mov = pm.response.json().data;",
+                  "const monto = Number(pm.collectionVariables.get('montoDeposito'));",
+                  "",
+                  "pm.test('El movimiento es un credito manual', () => {",
+                  "    pm.expect(mov.tipo).to.eql('credito');",
+                  "    pm.expect(mov.referencia_tipo).to.eql('manual');",
+                  "});",
+                  "pm.test('saldo_posterior = monto depositado', () => {",
+                  "    pm.expect(Number(mov.saldo_posterior)).to.eql(monto);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar saldo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}/saldo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}",
+                "saldo"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('El saldo refleja el deposito', () => {",
+                  "    pm.expect(Number(pm.response.json().data.saldo)).to.eql(Number(pm.collectionVariables.get('montoDeposito')));",
+                  "});",
+                  "pm.test('ultimo_movimiento tiene fecha', () => pm.expect(pm.response.json().data.ultimo_movimiento).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retiro mayor al saldo -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}/movimientos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}",
+                "movimientos"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"debito\",\n  \"monto\": 999999999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "",
+                  "assertError(409, 'CONFLICT');",
+                  "pm.test('El mensaje habla de saldo insuficiente', () => {",
+                  "    pm.expect(pm.response.json().error.message.toLowerCase()).to.include('saldo insuficiente');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Monto negativo -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}/movimientos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}",
+                "movimientos"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"credito\",\n  \"monto\": -500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(400, 'VALIDATION_ERROR');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Flujo de transferencia + validacion SQL",
+      "description": "Flujo E2E con el patron **pre-request / post-response + SQL**:\n\n1. *Pre-request:* leemos los saldos actuales **desde la base** (`/api/v2/sql/select`).\n2. Ejecutamos la operacion REST.\n3. *Post-response:* volvemos a leer la base y comprobamos que los saldos cambiaron exactamente\n   lo esperado. Asi no confiamos solo en lo que responde la API.\n\n**Conceptos:** `pm.sendRequest`, callbacks asincronos, validacion contra DB, contraasiento.",
+      "item": [
+        {
+          "name": "Abrir cuenta destino (PYG)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"tipoCuenta\": \"ahorro\",\n  \"moneda\": \"PYG\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('cuentaDestinoId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transferir (con validacion SQL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "transferencias"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"cuentaDestinoId\": {{cuentaDestinoId}},\n  \"monto\": {{montoTransferencia}},\n  \"concepto\": \"Transferencia de practica\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// PRE: foto de los saldos ANTES de transferir, leida directo de la base",
+                  "const sqlSelect = eval(pm.collectionVariables.get('sqlSelect'));",
+                  "const origen = Number(pm.collectionVariables.get('cuentaOrigenId'));",
+                  "const destino = Number(pm.collectionVariables.get('cuentaDestinoId'));",
+                  "",
+                  "sqlSelect('SELECT id, saldo FROM cuentas WHERE id IN ($1, $2)', [origen, destino], (err, filas) => {",
+                  "    if (err) { throw err; }",
+                  "    const saldo = id => filas.find(f => f.id === id).saldo;",
+                  "    pm.collectionVariables.set('saldoOrigenAntes', saldo(origen));",
+                  "    pm.collectionVariables.set('saldoDestinoAntes', saldo(destino));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const t = pm.response.json().data;",
+                  "pm.collectionVariables.set('transferenciaId', t.id);",
+                  "",
+                  "pm.test('La transferencia queda completada', () => pm.expect(t.estado).to.eql('completada'));",
+                  "pm.test('La referencia tiene formato TRF-...', () => pm.expect(t.referencia).to.match(/^TRF-\\d+-\\d+$/));",
+                  "",
+                  "// POST: volvemos a la base y comparamos contra la foto del pre-request",
+                  "const sqlSelect = eval(pm.collectionVariables.get('sqlSelect'));",
+                  "const origen = Number(pm.collectionVariables.get('cuentaOrigenId'));",
+                  "const destino = Number(pm.collectionVariables.get('cuentaDestinoId'));",
+                  "const monto = Number(pm.collectionVariables.get('montoTransferencia'));",
+                  "",
+                  "sqlSelect('SELECT id, saldo FROM cuentas WHERE id IN ($1, $2)', [origen, destino], (err, filas) => {",
+                  "    pm.test('[SQL] la consulta a la base funciono', () => pm.expect(err).to.be.null);",
+                  "    const saldo = id => Number(filas.find(f => f.id === id).saldo);",
+                  "",
+                  "    pm.test('[SQL] origen se debito exactamente el monto', () => {",
+                  "        pm.expect(saldo(origen)).to.eql(Number(pm.collectionVariables.get('saldoOrigenAntes')) - monto);",
+                  "    });",
+                  "    pm.test('[SQL] destino se acredito exactamente el monto', () => {",
+                  "        pm.expect(saldo(destino)).to.eql(Number(pm.collectionVariables.get('saldoDestinoAntes')) + monto);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ver movimiento de debito generado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}/movimientos?tipo=debito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}",
+                "movimientos"
+              ],
+              "query": [
+                {
+                  "key": "tipo",
+                  "value": "debito"
+                }
+              ]
+            },
+            "description": "La transferencia debe haber dejado un movimiento de debito que la referencia."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const movs = pm.response.json().data;",
+                  "const transferenciaId = Number(pm.collectionVariables.get('transferenciaId'));",
+                  "const mov = movs.find(m => m.referencia_tipo === 'transferencia' && m.referencia_id === transferenciaId);",
+                  "",
+                  "pm.test('Existe un debito que referencia a la transferencia', () => pm.expect(mov).to.not.be.undefined);",
+                  "pm.test('El debito es por el monto transferido', () => {",
+                  "    pm.expect(Number(mov.monto)).to.eql(Number(pm.collectionVariables.get('montoTransferencia')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anular transferencia",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/transferencias/{{transferenciaId}}/anular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "transferencias",
+                "{{transferenciaId}}",
+                "anular"
+              ]
+            },
+            "description": "Contraasiento: revierte los saldos. La transferencia no se borra, queda en `anulada`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Practica de anulacion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Estado anulada', () => pm.expect(pm.response.json().data.estado).to.eql('anulada'));",
+                  "",
+                  "const sqlSelect = eval(pm.collectionVariables.get('sqlSelect'));",
+                  "const origen = Number(pm.collectionVariables.get('cuentaOrigenId'));",
+                  "const destino = Number(pm.collectionVariables.get('cuentaDestinoId'));",
+                  "",
+                  "sqlSelect('SELECT id, saldo FROM cuentas WHERE id IN ($1, $2)', [origen, destino], (err, filas) => {",
+                  "    const saldo = id => filas.find(f => f.id === id).saldo;",
+                  "    pm.test('[SQL] los saldos volvieron a como estaban antes de transferir', () => {",
+                  "        pm.expect(saldo(origen)).to.eql(pm.collectionVariables.get('saldoOrigenAntes'));",
+                  "        pm.expect(saldo(destino)).to.eql(pm.collectionVariables.get('saldoDestinoAntes'));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anular dos veces -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/transferencias/{{transferenciaId}}/anular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "transferencias",
+                "{{transferenciaId}}",
+                "anular"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Segundo intento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(409, 'CONFLICT');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transferir sin destino -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/transferencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "transferencias"
+              ]
+            },
+            "description": "Hay que indicar exactamente uno: `cuentaDestinoId` o `beneficiarioId`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"monto\": 1000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(400, 'VALIDATION_ERROR');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Estados de cuenta",
+      "description": "Reglas de negocio sobre el estado de la cuenta (`activa`, `bloqueada`, `cerrada`).\n\n**Conceptos:** PATCH vs PUT, pruebas de transiciones de estado.",
+      "item": [
+        {
+          "name": "Bloquear cuenta destino (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaDestinoId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaDestinoId}}",
+                "estado"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"bloqueada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Estado bloqueada', () => pm.expect(pm.response.json().data.estado).to.eql('bloqueada'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Depositar en cuenta bloqueada -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaDestinoId}}/movimientos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaDestinoId}}",
+                "movimientos"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"credito\",\n  \"monto\": 1000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(409, 'CONFLICT');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cerrar cuenta con saldo -> 409",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}",
+                "estado"
+              ]
+            },
+            "description": "`cerrada` exige saldo 0. La cuenta origen todavia tiene el deposito.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"cerrada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const assertError = (status, code) => {",
+                  "    pm.test(`Status ${status}`, () => pm.response.to.have.status(status));",
+                  "    pm.test(`error.code es ${code}`, () => pm.expect(pm.response.json().error.code).to.eql(code));",
+                  "    pm.test('error.message no esta vacio', () => pm.expect(pm.response.json().error.message).to.be.a('string').and.not.empty);",
+                  "};",
+                  "assertError(409, 'CONFLICT');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Ejercicios para el estudiante",
+      "description": "Requests ya armados **sin tests completos**. Leé la consigna de cada uno (pestaña *Docs*) y\nescribí las validaciones en la pestaña *Scripts > Post-response*.\n\nSolo trae el test de status para que la corrida no falle; el resto lo agregás vos.",
+      "item": [
+        {
+          "name": "Ej 1 - Listar tarjetas de credito",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/tarjetas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "tarjetas"
+              ]
+            },
+            "description": "**Consigna**\n1. Validá que cada tarjeta tenga `tipo`, `marca`, `limite_credito`, `saldo_utilizado` y `disponible`.\n2. Validá que `disponible` sea exactamente `limite_credito - saldo_utilizado` (¡ojo, vienen como string!).\n3. Validá que ningún `numero_enmascarado` exponga el número completo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "// TODO: completa los tests de este ejercicio (ver la descripcion del request)."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ej 2 - Emitir tarjeta de debito",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/tarjetas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "tarjetas"
+              ]
+            },
+            "description": "**Consigna**\nAunque mandamos `limiteCredito: 5000000`, la documentación dice que *una tarjeta de débito siempre\nnace con límite 0*.\n1. Validá el status 201.\n2. Validá que `limite_credito` sea `\"0.00\"`.\n3. Agregá un request nuevo que la bloquee (`POST /tarjetas/{{tarjetaId}}/bloquear`): el id ya queda\n   guardado en `tarjetaId`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"tipo\": \"debito\",\n  \"marca\": \"visa\",\n  \"limiteCredito\": 5000000,\n  \"fechaVencimiento\": \"2030-12-31\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "// TODO: completa los tests de este ejercicio (ver la descripcion del request).",
+                  "",
+                  "// Se guarda el id para que la carpeta 99 pueda limpiar lo creado. No borrar esta linea.",
+                  "pm.collectionVariables.set('tarjetaId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ej 3 - Solicitar prestamo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/prestamos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos"
+              ]
+            },
+            "description": "**Consigna**\n1. Validá que el préstamo nace en estado `solicitado`.\n2. Agregá un request `POST /prestamos/{id}/aprobar` y validá que se generen **6** cuotas\n   (`GET /prestamos/{id}/cuotas`).\n3. Bonus: la cuota es `monto * (1 + tasa/100) / plazo`. Validá el monto de la primera cuota.\n\nEl id queda guardado en `prestamoId`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"montoSolicitado\": 1200000,\n  \"tasaInteres\": 12,\n  \"plazoMeses\": 6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "// TODO: completa los tests de este ejercicio (ver la descripcion del request).",
+                  "",
+                  "// Se guarda el id para que la carpeta 99 pueda limpiar lo creado. No borrar esta linea.",
+                  "pm.collectionVariables.set('prestamoId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ej 4 - Consulta SQL libre",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/sql/select",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "sql",
+                "select"
+              ]
+            },
+            "description": "**Consigna**\nEsta consulta trae todos los movimientos de tu cuenta origen.\n1. Validá que haya al menos 3 movimientos (depósito, débito de la transferencia y crédito de la anulación).\n2. Validá que el `saldo_posterior` del último movimiento sea igual al saldo actual de la cuenta\n   (`GET /cuentas/{{cuentaOrigenId}}/saldo` con `pm.sendRequest`).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sql\": \"SELECT id, tipo, monto, saldo_posterior FROM movimientos WHERE cuenta_id = $1 ORDER BY id\",\n  \"params\": [\n    {{cuentaOrigenId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "// TODO: completa los tests de este ejercicio (ver la descripcion del request)."
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "99 - Limpieza",
+      "description": "Deja el sandbox como estaba: vacía y elimina las cuentas (soft-delete) y el usuario de práctica.\n**Correla siempre al final**, así no dejamos basura para el resto del curso.",
+      "item": [
+        {
+          "name": "Retirar saldo restante de la cuenta origen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}/movimientos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}",
+                "movimientos"
+              ]
+            },
+            "description": "Una cuenta con saldo no se puede eliminar (409). El pre-request consulta el saldo actual y lo retira completo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"debito\",\n  \"monto\": {{saldoARetirar}},\n  \"descripcion\": \"Limpieza practica\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/api/v2/cuentas/' + pm.collectionVariables.get('cuentaOrigenId') + '/saldo',",
+                  "    method: 'GET',",
+                  "    header: { 'x-api-key': pm.variables.get('apiKey') }",
+                  "}, (err, res) => {",
+                  "    if (err) { throw err; }",
+                  "    pm.collectionVariables.set('saldoARetirar', Number(res.json().data.saldo));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('La cuenta queda en 0', () => pm.expect(pm.response.json().data.saldo_posterior).to.eql('0.00'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar cuenta origen",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaOrigenId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaOrigenId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar cuenta destino",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/cuentas/{{cuentaDestinoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "cuentas",
+                "{{cuentaDestinoId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar soft-delete en la base",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/sql/select",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "sql",
+                "select"
+              ]
+            },
+            "description": "Soft-delete: la fila sigue en la base pero con `activa = false`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sql\": \"SELECT id, activa FROM cuentas WHERE id IN ($1, $2)\",\n  \"params\": [\n    {{cuentaOrigenId}},\n    {{cuentaDestinoId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const filas = pm.response.json().data;",
+                  "pm.test('Las 2 filas siguen existiendo', () => pm.expect(filas).to.have.lengthOf(2));",
+                  "pm.test('Ambas quedaron con activa = false', () => filas.forEach(f => pm.expect(f.activa).to.be.false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar tarjeta del ejercicio 2",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/tarjetas/{{tarjetaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "tarjetas",
+                "{{tarjetaId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar prestamo del ejercicio 3",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/prestamos/{{prestamoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos",
+                "{{prestamoId}}"
+              ]
+            },
+            "description": "Si en el ejercicio 3 aprobaste el prestamo, queda saldo pendiente y la API responde `409`: tambien es un resultado valido."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 (o 409 si el prestamo fue aprobado y tiene saldo pendiente)', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([204, 409]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar usuario de practica",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/usuarios/{{usuarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "usuarios",
+                "{{usuarioId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
