@@ -11,14 +11,14 @@
       "name": "04 - Prestamo en mora",
       "item": [
         {
-          "name": "GET cuotas vencidas",
+          "name": "GET cuotas vencidas de un prestamo en mora",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code es 200', function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test('Devuelve al menos una cuota vencida', function () {\r\n    var jsonData = pm.response.json();\r\n    pm.expect(jsonData.data.length).to.be.above(0);\r\n});\r\n\r\npm.test('Todas las cuotas devueltas están en estado vencida', function () {\r\n    var jsonData = pm.response.json();\r\n    jsonData.data.forEach(function (cuota) {\r\n        pm.expect(cuota.estado).to.eql('vencida');\r\n    });\r\n});\r\n\r\npm.test('Las cuotas vencidas no tienen fecha de pago registrada', function () {\r\n    var jsonData = pm.response.json();\r\n    jsonData.data.forEach(function (cuota) {\r\n        pm.expect(cuota.fecha_pago).to.be.null;\r\n    });\r\n});\r\n\r\npm.test('Tiempo de respuesta menor a 3000ms', function () {\r\n    pm.expect(pm.response.responseTime).to.be.below(3000);\r\n});"
+                  "pm.test('Responde 200', function () {\n    pm.response.to.have.status(200);\n});\n\npm.test('Devuelve solo cuotas vencidas sin fecha de pago', function () {\n    var cuotas = pm.response.json().data;\n    pm.expect(cuotas).to.be.an('array').that.is.not.empty;\n    cuotas.forEach(function (cuota) {\n        pm.expect(cuota.prestamo_id).to.eql(Number(pm.variables.get('prestamo_mora_id')));\n        pm.expect(cuota.estado).to.eql('vencida');\n        pm.expect(cuota.fecha_pago).to.be.null;\n    });\n});\n\npm.test('Responde en menos de 3000 ms', function () {\n    pm.expect(pm.response.responseTime).to.be.below(3000);\n});"
                 ]
               }
             }
@@ -27,12 +27,12 @@
             "method": "GET",
             "header": [
               {
-                "key": "",
-                "value": ""
+                "key": "x-api-key",
+                "value": "{{api_key}}"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_id_mora}}/cuotas?estado=vencida",
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_mora_id}}/cuotas?estado=vencida",
               "host": [
                 "{{base_url}}"
               ],
@@ -40,7 +40,7 @@
                 "api",
                 "v2",
                 "prestamos",
-                "{{prestamo_id_mora}}",
+                "{{prestamo_mora_id}}",
                 "cuotas"
               ],
               "query": [
@@ -56,31 +56,31 @@
       ]
     },
     {
-      "name": "06 - Pagar Prestamo",
+      "name": "02 - Consulta de prestamos",
       "item": [
         {
-          "name": "Pagar una cuota",
+          "name": "GET detalle de prestamo vigente",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code es 200', function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test('Respuesta es JSON válido', function () {\r\n    pm.response.to.be.json;\r\n});\r\n\r\npm.test('Tiempo de respuesta menor a 3000ms', function () {\r\n    pm.expect(pm.response.responseTime).to.be.below(3000);\r\n});\r\n\r\npm.test('Respuesta contiene datos del pago', function () {\r\n    const jsonData = pm.response.json();\r\n    const hasData = jsonData.hasOwnProperty('data') || jsonData.hasOwnProperty('pago') || jsonData.hasOwnProperty('cuota');\r\n    pm.expect(hasData, \"Expected 'data', 'pago' or 'cuota' in response\").to.be.true;\r\n});\r\n\r\npm.test('La cuota tiene estado pagada', function () {\r\n    const jsonData = pm.response.json();\r\n    const cuota = jsonData.data || jsonData.pago || jsonData.cuota || jsonData;\r\n    const estado = cuota.estado || cuota.status;\r\n    pm.expect(estado).to.be.oneOf(['pagada', 'pagado', 'paid']);\r\n});\r\n\r\npm.test('La cuota tiene fecha de pago registrada', function () {\r\n    const jsonData = pm.response.json();\r\n    const cuota = jsonData.data || jsonData.pago || jsonData.cuota || jsonData;\r\n    const fechaPago = cuota.fecha_pago || cuota.fechaPago || cuota.payment_date;\r\n    pm.expect(fechaPago).to.not.be.null;\r\n    pm.expect(fechaPago).to.not.be.undefined;\r\n});"
+                  "pm.test('Responde 200', function () {\n    pm.response.to.have.status(200);\n});\n\npm.test('Devuelve el saldo del prestamo vigente', function () {\n    var prestamo = pm.response.json().data;\n    pm.expect(prestamo.id).to.eql(Number(pm.variables.get('prestamo_vigente_id')));\n    pm.expect(prestamo.estado).to.eql('aprobado');\n    pm.expect(Number(prestamo.saldo_pendiente)).to.be.above(0);\n});"
                 ]
               }
             }
           ],
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
               {
                 "key": "x-api-key",
-                "value": "sbx_c2_demo_334993ffb9d684b17c116367"
+                "value": "{{api_key}}"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_id}}/cuotas/{{numero_cuota}}/pagar",
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_vigente_id}}",
               "host": [
                 "{{base_url}}"
               ],
@@ -88,24 +88,21 @@
                 "api",
                 "v2",
                 "prestamos",
-                "{{prestamo_id}}",
-                "cuotas",
-                "{{numero_cuota}}",
-                "pagar"
+                "{{prestamo_vigente_id}}"
               ]
             }
           },
           "response": []
         },
         {
-          "name": "GET cuotas pendientes del Prestamo",
+          "name": "GET cuotas pendientes de prestamo vigente",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response has data array\", function () {\n    const responseJson = pm.response.json();\n    pm.expect(responseJson).to.be.an('object');\n    pm.expect(responseJson.data).to.be.an('array');\n});\n\npm.test(\"All returned cuotas have estado pendiente\", function () {\n    const responseJson = pm.response.json();\n    responseJson.data.forEach(cuota => {\n        pm.expect(cuota.estado).to.eql('pendiente');\n    });\n});\n"
+                  "pm.test('Responde 200', function () {\n    pm.response.to.have.status(200);\n});\n\npm.test('Devuelve cuotas pendientes del prestamo consultado', function () {\n    var cuotas = pm.response.json().data;\n    pm.expect(cuotas).to.be.an('array').that.is.not.empty;\n    cuotas.forEach(function (cuota) {\n        pm.expect(cuota.prestamo_id).to.eql(Number(pm.variables.get('prestamo_vigente_id')));\n        pm.expect(cuota.estado).to.eql('pendiente');\n        pm.expect(cuota.fecha_pago).to.be.null;\n    });\n});"
                 ]
               }
             }
@@ -123,7 +120,7 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_id}}/cuotas?estado=pendiente",
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_vigente_id}}/cuotas?estado=pendiente",
               "host": [
                 "{{base_url}}"
               ],
@@ -131,7 +128,7 @@
                 "api",
                 "v2",
                 "prestamos",
-                "{{prestamo_id}}",
+                "{{prestamo_vigente_id}}",
                 "cuotas"
               ],
               "query": [
@@ -142,6 +139,29 @@
               ]
             }
           },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Prestamo pagado y caso negativo",
+      "item": [
+        {
+          "name": "GET detalle de prestamo pagado",
+          "event": [{
+            "listen": "test",
+            "script": {"type": "text/javascript", "exec": ["pm.test('Responde 200', function () { pm.response.to.have.status(200); });\npm.test('El prestamo no tiene saldo pendiente', function () {\n    var prestamo = pm.response.json().data;\n    pm.expect(prestamo.id).to.eql(Number(pm.variables.get('prestamo_pagado_id')));\n    pm.expect(prestamo.estado).to.eql('pagado');\n    pm.expect(Number(prestamo.saldo_pendiente)).to.eql(0);\n});"]}
+          }],
+          "request": {"method": "GET", "header": [{"key": "x-api-key", "value": "{{api_key}}"}], "url": "{{base_url}}/api/v2/prestamos/{{prestamo_pagado_id}}"},
+          "response": []
+        },
+        {
+          "name": "GET prestamo inexistente devuelve 404",
+          "event": [{
+            "listen": "test",
+            "script": {"type": "text/javascript", "exec": ["pm.test('Responde 404', function () { pm.response.to.have.status(404); });\npm.test('Informa el codigo NOT_FOUND', function () {\n    var error = pm.response.json().error;\n    pm.expect(error.code).to.eql('NOT_FOUND');\n});"]}
+          }],
+          "request": {"method": "GET", "header": [{"key": "x-api-key", "value": "{{api_key}}"}], "url": "{{base_url}}/api/v2/prestamos/{{prestamo_inexistente_id}}"},
           "response": []
         }
       ]
@@ -167,21 +187,9 @@
       "key": "base_url",
       "value": ""
     },
-    {
-      "key": "prestamo_id_mora",
-      "value": ""
-    },
-    {
-      "key": "api_key",
-      "value": ""
-    },
-    {
-      "key": "prestamo_id",
-      "value": ""
-    },
-    {
-      "key": "numero_cuota",
-      "value": ""
-    }
+    {"key": "prestamo_mora_id", "value": "4"},
+    {"key": "prestamo_vigente_id", "value": "2"},
+    {"key": "prestamo_pagado_id", "value": "6"},
+    {"key": "prestamo_inexistente_id", "value": "999999"}
   ]
 }

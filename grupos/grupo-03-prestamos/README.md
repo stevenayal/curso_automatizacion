@@ -59,14 +59,28 @@ Modelo de datos confirmado contra la API real:
 
 Colección Postman: [`postman/Grupo 03 - Prestamos.postman_collection.json`](./postman/Grupo%2003%20-%20Prestamos.postman_collection.json)
 
+## Ejecución y reportes
+
+La colección es idempotente: cubre consultas de préstamo vigente, préstamo pagado, cuotas
+pendientes, cuotas vencidas y un préstamo inexistente. No ejecuta pagos sobre los datos compartidos
+del sandbox.
+
+```powershell
+npm run test:api:grupo-03 -- --env-var "api_key=$env:API_KEY"
+```
+
+La ejecución genera `newman/grupo-03/report.html`, `report.json` y `junit.xml`. En GitHub Actions,
+el workflow requiere el secreto de repositorio `AIQUAA_API_KEY` y publica esos tres archivos como
+artefacto de la ejecución.
+
 ## Entregables
 
 Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [X] Análisis y alcance (sección de arriba completa)
 - [X] BDD — `features/prestamos.feature` (happy path, negativo y edge case)
-- [X] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico *(1 de 4 escenarios completo: mora)*
+- [X] API — colección Postman/Newman en `postman/` con assertions y reportes HTML, JSON y JUnit
 - [ ] UI — `tests/e2e/prestamos.spec.ts` con Playwright
-- [ ] Evidencias en `evidence/`
-- [ ] CI/CD verde
+- [X] Evidencias — reportes Newman publicados como artefactos del workflow
+- [X] CI/CD — workflow de Newman configurado (requiere el secreto `AIQUAA_API_KEY`)
 - [X] PR de `grupo-03-prestamos` hacia `main` usando la plantilla del repo
