@@ -9,7 +9,7 @@
     "test:e2e:report": "playwright show-report",
     "test:api": "newman run \"postman/aiquaa Sandbox API.json\" -e postman/local.postman_environment.json",
     "test:practica": "newman run \"postman/practica/Practica - Sandbox API v2.postman_collection.json\" -e postman/practica/practica-v2.postman_environment.json --env-var \"apiKey=$API_KEY\" --delay-request 2500",
-    "test:api:grupo-03": "newman run \"grupos/grupo-03-prestamos/postman/Grupo 03 - Prestamos.postman_collection.json\" -e \"grupos/grupo-03-prestamos/postman/grupo-03-prestamos.postman_environment.json\" --reporters cli,junit,json,htmlextra --reporter-junit-export \"newman/grupo-03/junit.xml\" --reporter-json-export \"newman/grupo-03/report.json\" --reporter-htmlextra-export \"newman/grupo-03/report.html\" --reporter-htmlextra-title \"Grupo 03 - Prestamos\"",
+    "test:api:grupo-03": "newman run \"grupos/grupo-03-prestamos/postman/Grupo 03 - Prestamos.postman_collection.json\" -e \"grupos/grupo-03-prestamos/postman/grupo-03-prestamos.postman_environment.json\" --reporters cli,json --reporter-json-export \"newman/grupo-03/newman-results.json\"",
     "test:bdd": "cucumber-js",
     "smoke": "playwright test tests/e2e/smoke.spec.ts",
     "verify": "npm run test:bdd && npm run test:e2e"
@@ -18,7 +18,6 @@
     "@cucumber/cucumber": "^11.0.1",
     "@playwright/test": "^1.54.2",
     "dotenv": "^17.2.3",
-    "newman": "^6.2.1",
-    "newman-reporter-htmlextra": "^1.23.1"
+    "newman": "^6.2.1"
   }
 }

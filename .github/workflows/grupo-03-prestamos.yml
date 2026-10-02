@@ -35,11 +35,38 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: skills/postman-newman-skill/reporter/requirements.txt
+
       - name: Instalar dependencias
-        run: npm ci
+        run: |
+          npm ci
+          python -m pip install -r skills/postman-newman-skill/reporter/requirements.txt
 
       - name: Ejecutar coleccion de prestamos
         run: npm run test:api:grupo-03 -- --env-var "api_key=${{ secrets.API_KEY }}"
+
+      - name: Generar informe PDF
+        if: always()
+        run: |
+          if [[ -f newman/grupo-03/newman-results.json ]]; then
+            python skills/postman-newman-skill/reporter/newman_report.py \
+              --results newman/grupo-03/newman-results.json \
+              --output newman/grupo-03/INFORME_DE_AUT_GRUPO_03_PRESTAMOS.pdf \
+              --banner skills/postman-newman-skill/reporter/assets/banner_portada.png \
+              --logo-aiquaa skills/postman-newman-skill/reporter/assets/logo_aiquaa_circle.png \
+              --logo-postman skills/postman-newman-skill/reporter/assets/logo_postman_clean.png \
+              --api-version "v2" \
+              --repo-url "${{ github.server_url }}/${{ github.repository }}" \
+              --author "Grupo 03 - Prestamos" \
+              --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          else
+            echo "No se genero el JSON de resultados de Newman."
+          fi
 
       - name: Publicar reportes Newman
         if: always()
