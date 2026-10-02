@@ -69,9 +69,10 @@ del sandbox.
 npm run test:api:grupo-03 -- --env-var "api_key=$env:API_KEY"
 ```
 
-La ejecución genera `newman/grupo-03/report.html`, `report.json` y `junit.xml`. En GitHub Actions,
-el workflow requiere el secreto de repositorio `AIQUAA_API_KEY` y publica esos tres archivos como
-artefacto de la ejecución.
+La ejecución genera `newman/grupo-03/newman-results.json`. En GitHub Actions, el generador Python
+`skills/postman-newman-skill/reporter/newman_report.py` transforma ese resultado en
+`INFORME_DE_AUT_GRUPO_03_PRESTAMOS.pdf` y publica ambos archivos como artefacto. El workflow usa
+el secreto `API_KEY` del Environment `api_key`.
 
 ## Entregables
 
@@ -79,8 +80,8 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [X] Análisis y alcance (sección de arriba completa)
 - [X] BDD — `features/prestamos.feature` (happy path, negativo y edge case)
-- [X] API — colección Postman/Newman en `postman/` con assertions y reportes HTML, JSON y JUnit
+- [X] API — colección Postman/Newman en `postman/` con assertions, JSON de resultados e informe PDF
 - [ ] UI — `tests/e2e/prestamos.spec.ts` con Playwright
-- [X] Evidencias — reportes Newman publicados como artefactos del workflow
-- [X] CI/CD — workflow de Newman configurado (requiere el secreto `AIQUAA_API_KEY`)
+- [X] Evidencias — JSON de Newman e informe PDF publicados como artefactos del workflow
+- [X] CI/CD — workflow de Newman configurado (requiere el secreto `API_KEY` del Environment `api_key`)
 - [X] PR de `grupo-03-prestamos` hacia `main` usando la plantilla del repo
