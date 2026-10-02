@@ -24,6 +24,7 @@ jobs:
   newman:
     name: Newman API y reportes
     runs-on: ubuntu-latest
+    environment: api_key
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Ejecutar coleccion de prestamos
-        run: npm run test:api:grupo-03 -- --env-var "api_key=${{ secrets.AIQUAA_API_KEY }}"
+        run: npm run test:api:grupo-03 -- --env-var "api_key=${{ secrets.API_KEY }}"
 
       - name: Publicar reportes Newman
         if: always()
