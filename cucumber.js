@@ -11,7 +11,7 @@ module.exports = {
     require: require_,
     requireModule: ['ts-node/register'],
     tags: 'not @wip',
-    format: ['progress', 'json:newman/cucumber-report.json'],
+    format: ['progress', 'json:newman/cucumber-report.json', 'html:newman/cucumber-report.html'],
     formatOptions: { snippetInterface: 'async-await' },
   },
   wip: {
