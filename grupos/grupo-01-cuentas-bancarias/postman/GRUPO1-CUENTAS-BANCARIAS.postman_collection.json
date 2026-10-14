@@ -1,0 +1,362 @@
+{
+	"info": {
+		"_postman_id": "33a44374-8297-4d54-b7a2-eb7c20bbeda7",
+		"name": "GRUPO 1 - FABIAN MENDOZA",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "56710198",
+		"_collection_link": "https://www.postman.com/fabicell09-6353015/workspace/cit-fpuna/collection/56710198-33a44374-8297-4d54-b7a2-eb7c20bbeda7?action=share&source=collection_link&creator=56710198"
+	},
+	"item": [
+		{
+			"name": "New Request",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"\r",
+							"pm.test(\"Response status code is 200\", function () {\r",
+							"    pm.expect(pm.response.code).to.eql(200);\r",
+							"});\r",
+							"\r",
+							"\r",
+							"pm.test(\"Response contains required fields\", function () {\r",
+							"    const responseData = pm.response.json();\r",
+							"    \r",
+							"    pm.expect(responseData).to.be.an('object');\r",
+							"    pm.expect(responseData.data).to.be.an('array').that.is.not.empty;\r",
+							"\r",
+							"    responseData.data.forEach(function(item) {\r",
+							"        pm.expect(item).to.have.all.keys('id', 'usuario_id', 'numero_cuenta', 'tipo_cuenta', 'moneda', 'saldo', 'estado', 'activa', 'created_at');\r",
+							"    });\r",
+							"});\r",
+							"\r",
+							"\r",
+							"pm.test(\"Saldo must be a valid numeric value\", function () {\r",
+							"    const responseData = pm.response.json();\r",
+							"    \r",
+							"    pm.expect(responseData).to.be.an('object');\r",
+							"    pm.expect(responseData.data).to.be.an('array').that.is.not.empty;\r",
+							"    \r",
+							"    responseData.data.forEach(function(account) {\r",
+							"        pm.expect(account.saldo).to.satisfy(function(value) {\r",
+							"            return !isNaN(value) && typeof value === 'number';\r",
+							"        }, \"Saldo should be a valid numeric value\");\r",
+							"    });\r",
+							"});\r",
+							"\r",
+							"\r",
+							"pm.test(\"Created_at is in a valid date format\", function () {\r",
+							"    const responseData = pm.response.json();\r",
+							"    \r",
+							"    pm.expect(responseData).to.be.an('object');\r",
+							"    pm.expect(responseData.data).to.be.an('array').that.is.not.empty;\r",
+							"\r",
+							"    responseData.data.forEach(item => {\r",
+							"        pm.expect(item.created_at).to.exist;\r",
+							"        pm.expect(new Date(item.created_at).getTime()).to.not.be.NaN;\r",
+							"    });\r",
+							"});\r",
+							"\r",
+							"\r",
+							"pm.test(\"The 'activa' field must be a boolean value\", function () {\r",
+							"    const responseData = pm.response.json();\r",
+							"    \r",
+							"    pm.expect(responseData).to.have.property('data').that.is.an('array').with.length.of.at.least(1);\r",
+							"    responseData.data.forEach(function(item) {\r",
+							"        pm.expect(item).to.have.property('activa').that.is.a('boolean');\r",
+							"    });\r",
+							"});\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		},
+		{
+			"name": "https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"sql\": \"select * from qa_training_v2.cuentas\",\n  \"params\": []\n}"
+				},
+				"url": {
+					"raw": "https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select",
+					"protocol": "https",
+					"host": [
+						"aiquaa-sandbox-api",
+						"vercel",
+						"app"
+					],
+					"path": [
+						"api",
+						"v2",
+						"sql",
+						"select"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "LISTAR CUENTA - GRUPO 1",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Debe responder HTTP 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Debe devolver una lista de cuentas\", function () {\r",
+							"    const respuesta = pm.response.json();\r",
+							"\r",
+							"    pm.expect(respuesta.data).to.be.an(\"array\");\r",
+							"    pm.expect(respuesta.data.length).to.be.above(0);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Todas las cuentas deben tener el estado solicitado\", function () {\r",
+							"    const respuesta = pm.response.json();\r",
+							"    const estadoEsperado = pm.collectionVariables.get(\"estado_cuenta\");\r",
+							"\r",
+							"    respuesta.data.forEach(function (cuenta) {\r",
+							"        pm.expect(cuenta.estado).to.eql(estadoEsperado);\r",
+							"    });\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v2/cuentas?estado={{estado_cuenta}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v2",
+						"cuentas"
+					],
+					"query": [
+						{
+							"key": "estado",
+							"value": "{{estado_cuenta}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ABRIR CUENTA - GRUPO 1",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Debe crear la cuenta correctamente\", function () {\r",
+							"    pm.response.to.have.status(201);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Debe crear la cuenta con los datos solicitados\", function () {\r",
+							"    const respuesta = pm.response.json();\r",
+							"\r",
+							"    pm.expect(respuesta.data.usuario_id).to.eql(\r",
+							"        Number(pm.collectionVariables.get(\"usuario_id\"))\r",
+							"    );\r",
+							"\r",
+							"    pm.expect(respuesta.data.tipo_cuenta).to.eql(\r",
+							"        pm.collectionVariables.get(\"tipo_cuenta\")\r",
+							"    );\r",
+							"\r",
+							"    pm.expect(respuesta.data.moneda).to.eql(\r",
+							"        pm.collectionVariables.get(\"moneda\")\r",
+							"    );\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Debe devolver un ID de cuenta valido\", function () {\r",
+							"    const respuesta = pm.response.json();\r",
+							"\r",
+							"    pm.expect(respuesta.data.id).to.be.a(\"number\");\r",
+							"    pm.expect(respuesta.data.id).to.be.above(0);\r",
+							"\r",
+							"    pm.collectionVariables.set(\"cuenta_id\", respuesta.data.id);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"usuarioId\": {{usuario_id}},\r\n  \"tipoCuenta\": \"{{tipo_cuenta}}\",\r\n  \"moneda\": \"{{moneda}}\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v2/cuentas",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v2",
+						"cuentas"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "OBTENER CUENTA POR ID - GRUPO 1",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Debe responder HTTP 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Debe devolver la cuenta solicitada\", function () {\r",
+							"    const respuesta = pm.response.json();\r",
+							"\r",
+							"    pm.expect(respuesta.data.id).to.eql(\r",
+							"        Number(pm.collectionVariables.get(\"cuenta_id\"))\r",
+							"    );\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Debe devolver los datos principales de la cuenta\", function () {\r",
+							"    const respuesta = pm.response.json();\r",
+							"\r",
+							"    pm.expect(respuesta.data).to.have.property(\"numero_cuenta\");\r",
+							"    pm.expect(respuesta.data).to.have.property(\"tipo_cuenta\");\r",
+							"    pm.expect(respuesta.data).to.have.property(\"moneda\");\r",
+							"    pm.expect(respuesta.data).to.have.property(\"saldo\");\r",
+							"    pm.expect(respuesta.data).to.have.property(\"estado\");\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v2/cuentas/{{cuenta_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v2",
+						"cuentas",
+						"{{cuenta_id}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://aiquaa-sandbox-api.vercel.app",
+			"type": "string"
+		},
+		{
+			"key": "cuenta_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "estado_cuenta",
+			"value": "activa",
+			"type": "string"
+		},
+		{
+			"key": "usuario_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "tipo_cuenta",
+			"value": "ahorro",
+			"type": "string"
+		},
+		{
+			"key": "moneda",
+			"value": "PYG",
+			"type": "string"
+		},
+		{
+			"key": "api_key",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
