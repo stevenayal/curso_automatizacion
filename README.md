@@ -3,7 +3,7 @@
 Repositorio base del curso. Cada grupo trabaja en su propia carpeta y rama, y entrega por Pull
 Request.
 
-- **Sitio bajo prueba (UI):** [AIQUAA](https://aiquaa.com)
+- **Sitio bajo prueba (UI):** <https://aiquaa-sandbox-web.vercel.app> (Curso 2 · Productos Bancarios, `/v2`). Local y CI usan la misma URL por defecto; se cambia con `BASE_URL` (`.env` o variable de repo en GitHub).
 - **API de práctica:** <https://aiquaa-sandbox-api.vercel.app/docs> — ver [`docs/API-SANDBOX.md`](docs/API-SANDBOX.md)
 - **Base de datos de pruebas:** Postgres, un usuario por grupo — ver [`docs/ACCESO-DB.md`](docs/ACCESO-DB.md)
 
