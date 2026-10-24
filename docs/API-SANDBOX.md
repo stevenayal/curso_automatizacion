@@ -13,6 +13,7 @@ x-api-key: <su API key>
 ```
 
 La key se entrega por el canal del curso y se guarda en el `.env` (`API_KEY`), nunca en el repo.
+El CI falla si encuentra una key `sbx_...` commiteada: ver [SEGURIDAD-API-KEY.md](SEGURIDAD-API-KEY.md).
 
 Errores posibles: `UNAUTHORIZED`, `RATE_LIMITED`, `VALIDATION_ERROR`, `EXECUTION_ERROR`,
 `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`.

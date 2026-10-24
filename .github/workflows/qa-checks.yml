@@ -13,6 +13,34 @@ on:
         default: "postman/aiquaa Sandbox API.json"
 
 jobs:
+  secret-scan:
+    name: Sin API keys de la sandbox hardcodeadas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      # Falla si aparece una key sbx_... real en el repo. Las keys van en
+      # environments locales o en secrets (ver docs/SEGURIDAD-API-KEY.md).
+      # El log nunca muestra la key completa: el repo es publico.
+      - name: Buscar keys sbx_ en archivos versionados
+        run: |
+          PATRON='sbx_[A-Za-z0-9_-]{20,}'
+          PERMITIDOS='^sbx_(alumno[0-9]*_x+|demo_x+|invalida_0+|esta_key_no_existe)$'
+          encontradas=0
+          while IFS= read -r hit; do
+            key="${hit##*:}"
+            ubicacion="${hit%:*}"
+            if [[ "$key" =~ $PERMITIDOS ]]; then continue; fi
+            echo "::error::Posible API key hardcodeada en ${ubicacion} (${key:0:8}...)"
+            encontradas=$((encontradas + 1))
+          done < <(git grep -nIoE "$PATRON" || true)
+          if [[ $encontradas -gt 0 ]]; then
+            echo "Reemplazar por {{apiKey}} / {{api_key}} (Postman) o \${__P(api_key,)} (JMeter)."
+            exit 1
+          fi
+          echo "OK: no hay keys sbx_ hardcodeadas."
+
   checks:
     name: BDD + smoke UI
     runs-on: ubuntu-latest

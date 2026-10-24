@@ -48,8 +48,8 @@ paths:
           in: header
           schema:
             type: string
-          example: sbx_c2_demo_334993ffb9d684b17c116367N
+          example: '{{apiKey}}'
       responses: {}
       tags:
         - Usuarios
-      description: "Generated from cURL: curl https://aiquaa-sandbox-api.vercel.app/api/v2/usuarios \\\r\n  --header 'x-api-key:sbx_c2_demo_334993ffb9d684b17c116367N'"
+      description: "Generated from cURL: curl https://aiquaa-sandbox-api.vercel.app/api/v2/usuarios \\\r\n  --header 'x-api-key:{{apiKey}}'"

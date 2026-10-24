@@ -12,7 +12,7 @@ auth:
   type: apikey
   credentials:
     key: x-api-key
-    value: sbx_c2_demo_334993ffb9d684b17c116367
+    value: "{{apiKey}}"
 scripts:
   - type: afterResponse
     code: "// Escenario 4: Obtener plan de ahorro por ID\r
