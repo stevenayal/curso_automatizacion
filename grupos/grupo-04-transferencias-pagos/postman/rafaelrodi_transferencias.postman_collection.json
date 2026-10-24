@@ -1,0 +1,773 @@
+{
+  "info": {
+    "name": "rafaelrodi_transferencias",
+    "description": "Escenarios BDD del grupo 4 (Transferencias) mapeados a POST /api/v2/transferencias, con validaciones de respuesta y de BD via /api/v2/sql/select. Ver docs/trazabilidad-bdd-api.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Pre-request de la coleccion: helper SQL reutilizable (sandbox curso 2).",
+          "if (typeof utils === \"undefined\") {",
+          "  utils = {",
+          "    sql: function (sql, params) {",
+          "      return {",
+          "        url: pm.collectionVariables.get(\"baseUrl\") + \"/api/v2/sql/select\",",
+          "        method: \"POST\",",
+          "        header: { \"Content-Type\": \"application/json\", \"x-api-key\": pm.collectionVariables.get(\"apiKey\") },",
+          "        body: { mode: \"raw\", raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+          "      };",
+          "    }",
+          "  };",
+          "}",
+          "",
+          "// Descubrimiento dinamico de cuentas: UNA sola consulta a la BD y la eleccion se",
+          "// hace en JS. Se cachea 60 s (una corrida completa dura ~7 s) para no gastar",
+          "// requests del rate limit (30/min) en cada item.",
+          "var TTL_MS = 60000;",
+          "var vigente = Number(pm.collectionVariables.get(\"descubiertoEn\") || 0) > Date.now() - TTL_MS;",
+          "if (!vigente) {",
+          "  pm.sendRequest(utils.sql(\"SELECT * FROM cuentas ORDER BY id\", []), function (err, res) {",
+          "    if (err || res.code !== 200) {",
+          "      throw new Error(\"No se pudieron consultar las cuentas para armar los datos de prueba: \" + (err || res.code));",
+          "    }",
+          "    var cuentas = res.json().data.map(function (c) {",
+          "      return { id: Number(c.id), usuario: Number(c.usuario_id), moneda: c.moneda, saldo: Number(c.saldo), estado: c.estado, activa: c.activa };",
+          "    });",
+          "    var activas = cuentas.filter(function (c) { return c.estado === \"activa\" && c.activa; });",
+          "",
+          "    // Cuentas propias: mismo usuario y misma moneda, origen con saldo (el de mayor saldo).",
+          "    var par = null;",
+          "    activas.slice().sort(function (a, b) { return b.saldo - a.saldo; }).some(function (o) {",
+          "      var d = activas.filter(function (x) { return x.id !== o.id && x.usuario === o.usuario && x.moneda === o.moneda; })[0];",
+          "      if (o.saldo >= 1 && d) { par = { o: o, d: d }; return true; }",
+          "    });",
+          "    // Saldo bajo: la cuenta activa con menos saldo (que no sea el origen propio) + otro destino activo.",
+          "    var pobre = activas.filter(function (c) { return !par || c.id !== par.o.id; })",
+          "                       .sort(function (a, b) { return a.saldo - b.saldo; })[0];",
+          "    var destinoDePobre = pobre && activas.filter(function (c) { return c.id !== pobre.id; })[0];",
+          "    var bloqueada = cuentas.filter(function (c) { return c.estado === \"bloqueada\"; })[0];",
+          "    var cerrada = cuentas.filter(function (c) { return c.estado === \"cerrada\"; })[0];",
+          "",
+          "    var faltan = [];",
+          "    if (!par) faltan.push(\"dos cuentas activas del mismo usuario/moneda con saldo\");",
+          "    if (!pobre || !destinoDePobre) faltan.push(\"una cuenta activa de saldo bajo + otro destino activo\");",
+          "    if (!bloqueada) faltan.push(\"una cuenta bloqueada\");",
+          "    if (!cerrada) faltan.push(\"una cuenta cerrada\");",
+          "    if (faltan.length) { throw new Error(\"El estado actual de la BD no permite armar los escenarios. Falta: \" + faltan.join(\"; \")); }",
+          "",
+          "    var maxId = Math.max.apply(null, cuentas.map(function (c) { return c.id; }));",
+          "    pm.collectionVariables.set(\"cuentaPropiaOrigenId\", par.o.id);",
+          "    pm.collectionVariables.set(\"cuentaPropiaDestinoId\", par.d.id);",
+          "    pm.collectionVariables.set(\"cuentaSaldoBajoId\", pobre.id);",
+          "    pm.collectionVariables.set(\"cuentaDestinoOtroId\", destinoDePobre.id);",
+          "    pm.collectionVariables.set(\"cuentaBloqueadaId\", bloqueada.id);",
+          "    pm.collectionVariables.set(\"cuentaCerradaId\", cerrada.id);",
+          "    pm.collectionVariables.set(\"cuentaInexistenteId\", maxId + 1000);",
+          "    pm.collectionVariables.set(\"descubiertoEn\", Date.now());",
+          "  });",
+          "}",
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://aiquaa-sandbox-api.vercel.app",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "sbx_c2_demo_334993ffb9d684b17c116367",
+      "type": "string"
+    },
+    {
+      "key": "cuentaPropiaOrigenId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaPropiaDestinoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaBloqueadaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaCerradaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaSaldoBajoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaDestinoOtroId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaInexistenteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaOrigenId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cuentaDestinoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "descubiertoEn",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "monto",
+      "value": "25000",
+      "type": "string"
+    },
+    {
+      "key": "concepto",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "BDD 1 - Transferencia entre cuentas propias [@happy-path]",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Datos del escenario + snapshot del estado ANTES de transferir.",
+              "const escenario = \"happy-path\";",
+              "pm.collectionVariables.set(\"cuentaOrigenId\", Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")));",
+              "pm.collectionVariables.set(\"cuentaDestinoId\", Number(pm.collectionVariables.get(\"cuentaPropiaDestinoId\")));",
+              "// concepto unico por corrida: permite buscar SOLO esta transferencia en la BD",
+              "pm.collectionVariables.set(\"concepto\", \"BDD-\" + escenario + \"-\" + Date.now());",
+              "",
+              "// El monto se calcula con el saldo REAL de la BD (pm.sendRequest es asincrono",
+              "// pero Postman/newman esperan al callback antes de enviar el request).",
+              "pm.sendRequest(",
+              "  utils.sql(\"SELECT id, saldo FROM cuentas WHERE id IN ($1, $2) ORDER BY id\", [Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")), Number(pm.collectionVariables.get(\"cuentaPropiaDestinoId\"))]),",
+              "  function (err, res) {",
+              "    if (err) { throw err; }",
+              "    var filas = res.json().data;",
+              "    filas.forEach(function (c) {",
+              "      pm.collectionVariables.set(\"saldoPrevio_\" + c.id, Number(c.saldo));",
+              "    });",
+              "    var saldoOrigen = Number(pm.collectionVariables.get(\"saldoPrevio_\" + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\"))));",
+              "    // happy path: el monto se ajusta al saldo real (max 25000) para que siempre alcance",
+              "    var monto = Math.min(25000, Math.floor(saldoOrigen));",
+              "    if (monto < 1) { throw new Error('La cuenta origen ' + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")) + ' no tiene saldo para el happy path: recargarla o cambiar cuentaPropiaOrigenId'); }",
+              "    pm.collectionVariables.set(\"monto\", monto);",
+              "  }",
+              ");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response time is less than 3000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});",
+              "",
+              "pm.test('Status 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('La transferencia queda registrada en estado exitoso (completada)', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.estado).to.eql('completada');",
+              "    pm.expect(jsonData.data.cuenta_origen_id).to.eql(Number(pm.collectionVariables.get(\"cuentaOrigenId\")));",
+              "    pm.expect(jsonData.data.cuenta_destino_id).to.eql(Number(pm.collectionVariables.get(\"cuentaDestinoId\")));",
+              "    pm.expect(Number(jsonData.data.monto)).to.eql(Number(pm.collectionVariables.get(\"monto\")));",
+              "    pm.expect(jsonData.data.referencia).to.match(/^TRF-/);",
+              "});",
+              "",
+              "pm.test('Los saldos devueltos reflejan debito y credito', function () {",
+              "    var d = pm.response.json().data;",
+              "    var monto = Number(pm.collectionVariables.get(\"monto\"));",
+              "    pm.expect(Number(d.cuenta_origen.saldo)).to.eql(Number(pm.collectionVariables.get(\"saldoPrevio_\" + d.cuenta_origen_id)) - monto);",
+              "    pm.expect(Number(d.cuenta_destino.saldo)).to.eql(Number(pm.collectionVariables.get(\"saldoPrevio_\" + d.cuenta_destino_id)) + monto);",
+              "});",
+              "",
+              "// Validacion contra la BD: la transferencia existe y esta completada.",
+              "const concepto = pm.collectionVariables.get(\"concepto\");",
+              "pm.sendRequest(utils.sql(\"SELECT estado, monto FROM transferencias WHERE concepto = $1\", [concepto]), function (err, res) {",
+              "    pm.test('La BD tiene UNA transferencia completada con ese concepto', function () {",
+              "        var filas = res.json().data;",
+              "        pm.expect(filas.length).to.eql(1);",
+              "        pm.expect(filas[0].estado).to.eql('completada');",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Dado dos cuentas activas del mismo cliente (usuario 1: cuentas 1 y 16, PYG) con saldo suficiente. Cuando transfiere un importe valido. Entonces queda 'completada' (201).",
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/transferencias",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "transferencias"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"cuentaDestinoId\": {{cuentaDestinoId}},\n  \"monto\": {{monto}},\n  \"concepto\": \"{{concepto}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "BDD 2 - Misma cuenta origen y destino [@negativo]",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Datos del escenario + snapshot del estado ANTES de transferir.",
+              "const escenario = \"misma-cuenta\";",
+              "pm.collectionVariables.set(\"cuentaOrigenId\", Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")));",
+              "pm.collectionVariables.set(\"cuentaDestinoId\", Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")));",
+              "// concepto unico por corrida: permite buscar SOLO esta transferencia en la BD",
+              "pm.collectionVariables.set(\"concepto\", \"BDD-\" + escenario + \"-\" + Date.now());",
+              "",
+              "// El monto se calcula con el saldo REAL de la BD (pm.sendRequest es asincrono",
+              "// pero Postman/newman esperan al callback antes de enviar el request).",
+              "pm.sendRequest(",
+              "  utils.sql(\"SELECT id, saldo FROM cuentas WHERE id IN ($1, $2) ORDER BY id\", [Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")), Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\"))]),",
+              "  function (err, res) {",
+              "    if (err) { throw err; }",
+              "    var filas = res.json().data;",
+              "    filas.forEach(function (c) {",
+              "      pm.collectionVariables.set(\"saldoPrevio_\" + c.id, Number(c.saldo));",
+              "    });",
+              "    var saldoOrigen = Number(pm.collectionVariables.get(\"saldoPrevio_\" + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\"))));",
+              "    // happy path: el monto se ajusta al saldo real (max 25000) para que siempre alcance",
+              "    var monto = Math.min(25000, Math.floor(saldoOrigen));",
+              "    if (monto < 1) { throw new Error('La cuenta origen ' + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")) + ' no tiene saldo para el happy path: recargarla o cambiar cuentaPropiaOrigenId'); }",
+              "    pm.collectionVariables.set(\"monto\", monto);",
+              "  }",
+              ");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response time is less than 3000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});",
+              "",
+              "pm.test('El sistema rechaza la operacion con HTTP 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('El error es VALIDATION_ERROR y el mensaje es el esperado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.be.undefined;",
+              "    pm.expect(jsonData.error.code).to.eql('VALIDATION_ERROR');",
+              "    pm.expect(jsonData.error.message).to.match(/no puede ser la misma/i);",
+              "});",
+              "",
+              "// Validacion contra la BD: no se registro la transferencia y no se desconto el monto.",
+              "const origen = Number(pm.collectionVariables.get(\"cuentaOrigenId\"));",
+              "const concepto = pm.collectionVariables.get(\"concepto\");",
+              "pm.sendRequest(utils.sql(\"SELECT id FROM transferencias WHERE concepto = $1\", [concepto]), function (err, res) {",
+              "    pm.test('La transferencia NO queda registrada en la BD', function () {",
+              "        pm.expect(err).to.be.null;",
+              "        pm.expect(res.json().data.length).to.eql(0);",
+              "    });",
+              "});",
+              "pm.sendRequest(utils.sql(\"SELECT saldo FROM cuentas WHERE id = $1\", [origen]), function (err, res) {",
+              "    pm.test('El saldo de la cuenta origen no se modifico', function () {",
+              "        pm.expect(Number(res.json().data[0].saldo)).to.eql(Number(pm.collectionVariables.get(\"saldoPrevio_\" + origen)));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Dado una cuenta activa. Cuando transfiere a si misma. Entonces 400 VALIDATION_ERROR y no se registra.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/transferencias",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "transferencias"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"cuentaDestinoId\": {{cuentaDestinoId}},\n  \"monto\": {{monto}},\n  \"concepto\": \"{{concepto}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "BDD 3 - Destino bloqueada [@edge-case]",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Datos del escenario + snapshot del estado ANTES de transferir.",
+              "const escenario = \"destino-bloqueada\";",
+              "pm.collectionVariables.set(\"cuentaOrigenId\", Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")));",
+              "pm.collectionVariables.set(\"cuentaDestinoId\", Number(pm.collectionVariables.get(\"cuentaBloqueadaId\")));",
+              "// concepto unico por corrida: permite buscar SOLO esta transferencia en la BD",
+              "pm.collectionVariables.set(\"concepto\", \"BDD-\" + escenario + \"-\" + Date.now());",
+              "",
+              "// El monto se calcula con el saldo REAL de la BD (pm.sendRequest es asincrono",
+              "// pero Postman/newman esperan al callback antes de enviar el request).",
+              "pm.sendRequest(",
+              "  utils.sql(\"SELECT id, saldo FROM cuentas WHERE id IN ($1, $2) ORDER BY id\", [Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")), Number(pm.collectionVariables.get(\"cuentaBloqueadaId\"))]),",
+              "  function (err, res) {",
+              "    if (err) { throw err; }",
+              "    var filas = res.json().data;",
+              "    filas.forEach(function (c) {",
+              "      pm.collectionVariables.set(\"saldoPrevio_\" + c.id, Number(c.saldo));",
+              "    });",
+              "    var saldoOrigen = Number(pm.collectionVariables.get(\"saldoPrevio_\" + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\"))));",
+              "    // happy path: el monto se ajusta al saldo real (max 25000) para que siempre alcance",
+              "    var monto = Math.min(25000, Math.floor(saldoOrigen));",
+              "    if (monto < 1) { throw new Error('La cuenta origen ' + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")) + ' no tiene saldo para el happy path: recargarla o cambiar cuentaPropiaOrigenId'); }",
+              "    pm.collectionVariables.set(\"monto\", monto);",
+              "  }",
+              ");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response time is less than 3000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});",
+              "",
+              "pm.test('El sistema rechaza la operacion con HTTP 409', function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test('El error es CONFLICT y el mensaje es el esperado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.be.undefined;",
+              "    pm.expect(jsonData.error.code).to.eql('CONFLICT');",
+              "    pm.expect(jsonData.error.message).to.match(/bloqueada/i);",
+              "});",
+              "",
+              "// Validacion contra la BD: no se registro la transferencia y no se desconto el monto.",
+              "const origen = Number(pm.collectionVariables.get(\"cuentaOrigenId\"));",
+              "const concepto = pm.collectionVariables.get(\"concepto\");",
+              "pm.sendRequest(utils.sql(\"SELECT id FROM transferencias WHERE concepto = $1\", [concepto]), function (err, res) {",
+              "    pm.test('La transferencia NO queda registrada en la BD', function () {",
+              "        pm.expect(err).to.be.null;",
+              "        pm.expect(res.json().data.length).to.eql(0);",
+              "    });",
+              "});",
+              "pm.sendRequest(utils.sql(\"SELECT saldo FROM cuentas WHERE id = $1\", [origen]), function (err, res) {",
+              "    pm.test('El saldo de la cuenta origen no se modifico', function () {",
+              "        pm.expect(Number(res.json().data[0].saldo)).to.eql(Number(pm.collectionVariables.get(\"saldoPrevio_\" + origen)));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Dado origen activa con saldo y destino 'bloqueada' (cuenta 8). Entonces 409 CONFLICT, sin debito ni registro.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/transferencias",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "transferencias"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"cuentaDestinoId\": {{cuentaDestinoId}},\n  \"monto\": {{monto}},\n  \"concepto\": \"{{concepto}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "BDD 4 - Destino cerrada [@edge-case]",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Datos del escenario + snapshot del estado ANTES de transferir.",
+              "const escenario = \"destino-cerrada\";",
+              "pm.collectionVariables.set(\"cuentaOrigenId\", Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")));",
+              "pm.collectionVariables.set(\"cuentaDestinoId\", Number(pm.collectionVariables.get(\"cuentaCerradaId\")));",
+              "// concepto unico por corrida: permite buscar SOLO esta transferencia en la BD",
+              "pm.collectionVariables.set(\"concepto\", \"BDD-\" + escenario + \"-\" + Date.now());",
+              "",
+              "// El monto se calcula con el saldo REAL de la BD (pm.sendRequest es asincrono",
+              "// pero Postman/newman esperan al callback antes de enviar el request).",
+              "pm.sendRequest(",
+              "  utils.sql(\"SELECT id, saldo FROM cuentas WHERE id IN ($1, $2) ORDER BY id\", [Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")), Number(pm.collectionVariables.get(\"cuentaCerradaId\"))]),",
+              "  function (err, res) {",
+              "    if (err) { throw err; }",
+              "    var filas = res.json().data;",
+              "    filas.forEach(function (c) {",
+              "      pm.collectionVariables.set(\"saldoPrevio_\" + c.id, Number(c.saldo));",
+              "    });",
+              "    var saldoOrigen = Number(pm.collectionVariables.get(\"saldoPrevio_\" + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\"))));",
+              "    // happy path: el monto se ajusta al saldo real (max 25000) para que siempre alcance",
+              "    var monto = Math.min(25000, Math.floor(saldoOrigen));",
+              "    if (monto < 1) { throw new Error('La cuenta origen ' + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")) + ' no tiene saldo para el happy path: recargarla o cambiar cuentaPropiaOrigenId'); }",
+              "    pm.collectionVariables.set(\"monto\", monto);",
+              "  }",
+              ");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response time is less than 3000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});",
+              "",
+              "pm.test('El sistema rechaza la operacion con HTTP 409', function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test('El error es CONFLICT y el mensaje es el esperado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.be.undefined;",
+              "    pm.expect(jsonData.error.code).to.eql('CONFLICT');",
+              "    pm.expect(jsonData.error.message).to.match(/cerrada/i);",
+              "});",
+              "",
+              "// Validacion contra la BD: no se registro la transferencia y no se desconto el monto.",
+              "const origen = Number(pm.collectionVariables.get(\"cuentaOrigenId\"));",
+              "const concepto = pm.collectionVariables.get(\"concepto\");",
+              "pm.sendRequest(utils.sql(\"SELECT id FROM transferencias WHERE concepto = $1\", [concepto]), function (err, res) {",
+              "    pm.test('La transferencia NO queda registrada en la BD', function () {",
+              "        pm.expect(err).to.be.null;",
+              "        pm.expect(res.json().data.length).to.eql(0);",
+              "    });",
+              "});",
+              "pm.sendRequest(utils.sql(\"SELECT saldo FROM cuentas WHERE id = $1\", [origen]), function (err, res) {",
+              "    pm.test('El saldo de la cuenta origen no se modifico', function () {",
+              "        pm.expect(Number(res.json().data[0].saldo)).to.eql(Number(pm.collectionVariables.get(\"saldoPrevio_\" + origen)));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Dado origen activa con saldo y destino 'cerrada' (cuenta 10). Entonces 409 CONFLICT, sin debito ni registro.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/transferencias",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "transferencias"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"cuentaDestinoId\": {{cuentaDestinoId}},\n  \"monto\": {{monto}},\n  \"concepto\": \"{{concepto}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "BDD 5 - Saldo insuficiente [@negativo]",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Datos del escenario + snapshot del estado ANTES de transferir.",
+              "const escenario = \"saldo-insuficiente\";",
+              "pm.collectionVariables.set(\"cuentaOrigenId\", Number(pm.collectionVariables.get(\"cuentaSaldoBajoId\")));",
+              "pm.collectionVariables.set(\"cuentaDestinoId\", Number(pm.collectionVariables.get(\"cuentaDestinoOtroId\")));",
+              "// concepto unico por corrida: permite buscar SOLO esta transferencia en la BD",
+              "pm.collectionVariables.set(\"concepto\", \"BDD-\" + escenario + \"-\" + Date.now());",
+              "",
+              "// El monto se calcula con el saldo REAL de la BD (pm.sendRequest es asincrono",
+              "// pero Postman/newman esperan al callback antes de enviar el request).",
+              "pm.sendRequest(",
+              "  utils.sql(\"SELECT id, saldo FROM cuentas WHERE id IN ($1, $2) ORDER BY id\", [Number(pm.collectionVariables.get(\"cuentaSaldoBajoId\")), Number(pm.collectionVariables.get(\"cuentaDestinoOtroId\"))]),",
+              "  function (err, res) {",
+              "    if (err) { throw err; }",
+              "    var filas = res.json().data;",
+              "    filas.forEach(function (c) {",
+              "      pm.collectionVariables.set(\"saldoPrevio_\" + c.id, Number(c.saldo));",
+              "    });",
+              "    var saldoOrigen = Number(pm.collectionVariables.get(\"saldoPrevio_\" + Number(pm.collectionVariables.get(\"cuentaSaldoBajoId\"))));",
+              "    // saldo insuficiente: siempre saldo + 1, sin importar cuanto tenga la cuenta hoy",
+              "    var monto = Math.floor(saldoOrigen) + 1;",
+              "    pm.collectionVariables.set(\"monto\", monto);",
+              "  }",
+              ");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response time is less than 3000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});",
+              "",
+              "pm.test('El sistema rechaza la operacion con HTTP 409', function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test('El error es CONFLICT y el mensaje es el esperado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.be.undefined;",
+              "    pm.expect(jsonData.error.code).to.eql('CONFLICT');",
+              "    pm.expect(jsonData.error.message).to.match(/saldo insuficiente/i);",
+              "});",
+              "",
+              "// Validacion contra la BD: no se registro la transferencia y no se desconto el monto.",
+              "const origen = Number(pm.collectionVariables.get(\"cuentaOrigenId\"));",
+              "const concepto = pm.collectionVariables.get(\"concepto\");",
+              "pm.sendRequest(utils.sql(\"SELECT id FROM transferencias WHERE concepto = $1\", [concepto]), function (err, res) {",
+              "    pm.test('La transferencia NO queda registrada en la BD', function () {",
+              "        pm.expect(err).to.be.null;",
+              "        pm.expect(res.json().data.length).to.eql(0);",
+              "    });",
+              "});",
+              "pm.sendRequest(utils.sql(\"SELECT saldo FROM cuentas WHERE id = $1\", [origen]), function (err, res) {",
+              "    pm.test('El saldo de la cuenta origen no se modifico', function () {",
+              "        pm.expect(Number(res.json().data[0].saldo)).to.eql(Number(pm.collectionVariables.get(\"saldoPrevio_\" + origen)));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Dado cuenta activa 5 (saldo 320.000 PYG). Cuando transfiere saldo+1 (calculado en el pre-request). Entonces 409 CONFLICT 'Saldo insuficiente'.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/transferencias",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "transferencias"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"cuentaDestinoId\": {{cuentaDestinoId}},\n  \"monto\": {{monto}},\n  \"concepto\": \"{{concepto}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "BDD 6 - Destino inexistente [@negativo]",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Datos del escenario + snapshot del estado ANTES de transferir.",
+              "const escenario = \"destino-inexistente\";",
+              "pm.collectionVariables.set(\"cuentaOrigenId\", Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")));",
+              "pm.collectionVariables.set(\"cuentaDestinoId\", Number(pm.collectionVariables.get(\"cuentaInexistenteId\")));",
+              "// concepto unico por corrida: permite buscar SOLO esta transferencia en la BD",
+              "pm.collectionVariables.set(\"concepto\", \"BDD-\" + escenario + \"-\" + Date.now());",
+              "",
+              "// El monto se calcula con el saldo REAL de la BD (pm.sendRequest es asincrono",
+              "// pero Postman/newman esperan al callback antes de enviar el request).",
+              "pm.sendRequest(",
+              "  utils.sql(\"SELECT id, saldo FROM cuentas WHERE id IN ($1, $2) ORDER BY id\", [Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")), Number(pm.collectionVariables.get(\"cuentaInexistenteId\"))]),",
+              "  function (err, res) {",
+              "    if (err) { throw err; }",
+              "    var filas = res.json().data;",
+              "    filas.forEach(function (c) {",
+              "      pm.collectionVariables.set(\"saldoPrevio_\" + c.id, Number(c.saldo));",
+              "    });",
+              "    var saldoOrigen = Number(pm.collectionVariables.get(\"saldoPrevio_\" + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\"))));",
+              "    // happy path: el monto se ajusta al saldo real (max 25000) para que siempre alcance",
+              "    var monto = Math.min(25000, Math.floor(saldoOrigen));",
+              "    if (monto < 1) { throw new Error('La cuenta origen ' + Number(pm.collectionVariables.get(\"cuentaPropiaOrigenId\")) + ' no tiene saldo para el happy path: recargarla o cambiar cuentaPropiaOrigenId'); }",
+              "    pm.collectionVariables.set(\"monto\", monto);",
+              "  }",
+              ");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Response time is less than 3000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});",
+              "",
+              "pm.test('El sistema rechaza la operacion con HTTP 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test('El error es NOT_FOUND y el mensaje es el esperado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.be.undefined;",
+              "    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+              "    pm.expect(jsonData.error.message).to.match(/destino no encontrada/i);",
+              "});",
+              "",
+              "// Validacion contra la BD: no se registro la transferencia y no se desconto el monto.",
+              "const origen = Number(pm.collectionVariables.get(\"cuentaOrigenId\"));",
+              "const concepto = pm.collectionVariables.get(\"concepto\");",
+              "pm.sendRequest(utils.sql(\"SELECT id FROM transferencias WHERE concepto = $1\", [concepto]), function (err, res) {",
+              "    pm.test('La transferencia NO queda registrada en la BD', function () {",
+              "        pm.expect(err).to.be.null;",
+              "        pm.expect(res.json().data.length).to.eql(0);",
+              "    });",
+              "});",
+              "pm.sendRequest(utils.sql(\"SELECT saldo FROM cuentas WHERE id = $1\", [origen]), function (err, res) {",
+              "    pm.test('El saldo de la cuenta origen no se modifico', function () {",
+              "        pm.expect(Number(res.json().data[0].saldo)).to.eql(Number(pm.collectionVariables.get(\"saldoPrevio_\" + origen)));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Dado cuenta activa con saldo. Cuando transfiere a la cuenta 999999999 (no existe). Entonces 404 NOT_FOUND.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/transferencias",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "transferencias"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"cuentaDestinoId\": {{cuentaDestinoId}},\n  \"monto\": {{monto}},\n  \"concepto\": \"{{concepto}}\"\n}"
+        }
+      }
+    }
+  ]
+}

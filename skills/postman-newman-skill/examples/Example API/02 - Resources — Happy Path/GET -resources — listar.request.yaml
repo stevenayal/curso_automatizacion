@@ -1,0 +1,11 @@
+$kind: http-request
+name: GET /resources — listar
+url: "{{baseUrl}}/resources"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => pm.response.to.have.status(200));
+      pm.test('response is array', () => pm.expect(pm.response.json()).to.be.an('array'));
+    language: text/javascript
+order: 1000

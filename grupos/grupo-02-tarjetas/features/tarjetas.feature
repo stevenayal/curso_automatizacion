@@ -24,3 +24,38 @@ Característica: Tarjetas de crédito y débito
     Dado que el cliente tiene una tarjeta con fecha de vencimiento pasada
     Cuando consulta el disponible de esa tarjeta
     Entonces el sistema indica que la tarjeta está vencida
+
+      @happy-path
+  Escenario: El cliente consulta el límite disponible de una tarjeta
+    Dado que el cliente tiene una tarjeta activa con un límite disponible
+    Cuando consulta el límite disponible de esa tarjeta
+    Entonces el sistema muestra el límite disponible de la tarjeta
+
+  @happy-path
+  Escenario: El cliente solicita aumentar el límite de una tarjeta
+    Dado que el cliente tiene una tarjeta activa con un límite establecido
+    Cuando solicita aumentar el límite de esa tarjeta
+    Entonces el sistema registra la solicitud de aumento de límite
+
+  @negativo
+  Escenario: El cliente intenta aumentar el límite de una tarjeta bloqueada
+    Dado que el cliente tiene una tarjeta en estado bloqueada
+    Cuando solicita aumentar el límite de esa tarjeta
+    Entonces el sistema rechaza la solicitud de aumento de límite
+
+  @happy-path
+  Escenario: Modificación exitosa del límite de compra de una tarjeta
+    Dado que el cliente tiene una tarjeta activa con un límite de compra actual
+    Cuando solicita aumentar el límite de compra a un monto permitido
+    Entonces el sistema actualiza el límite de la tarjeta correctamente
+
+  @negativo
+  Escenario: Compra rechazada por superar el límite disponible
+    Dado que el cliente tiene una tarjeta activa con un límite disponible determinado
+    Cuando intenta realizar una compra por un monto superior al límite disponible
+    Entonces el sistema rechaza la transacción por fondos insuficientes
+  @happy-path
+  Escenario: Reimpresión de Tarjeta
+    Dado que el cliente tiene una tarjeta en estado activo y esta se extravía o sufre deterioro
+    Cuando solicita la reimpresión de la tarjeta
+    Entonces el sistema emite la nueva tarjeta y registra la reimpresión en el historial de la tarjeta

@@ -1,0 +1,76 @@
+{
+  "source": "cucumber-report.sample.json",
+  "summary": {
+    "total": 6,
+    "failed": 5,
+    "flaky": 0,
+    "byCategory": {
+      "PRODUCT_BUG": 1,
+      "TEST_BUG": 3,
+      "ENVIRONMENT": 0,
+      "DATA": 0,
+      "NETWORK": 0,
+      "UNKNOWN": 1
+    },
+    "healerCandidates": 1,
+    "maxHealAttempts": 2
+  },
+  "failures": [
+    {
+      "file": "features/transferencias/F_TRANSFERENCIAS.feature",
+      "title": "Transferencia exitosa entre cuentas propias",
+      "project": "cucumber",
+      "step": "When transfiero 500000 de \"CA_GS\" a \"CC_GS\"",
+      "category": "TEST_BUG",
+      "confidence": "high",
+      "matchedRule": "locator-not-found",
+      "healerAllowed": true,
+      "error": "locator.click: Timeout 15000ms exceeded."
+    },
+    {
+      "file": "features/transferencias/F_TRANSFERENCIAS.feature",
+      "title": "El saldo de origen se descuenta por el monto transferido",
+      "project": "cucumber",
+      "step": "Then el saldo disponible de \"CA_GS\" es 500000",
+      "category": "PRODUCT_BUG",
+      "confidence": "medium",
+      "matchedRule": "business-value-mismatch",
+      "healerAllowed": false,
+      "error": "Error: expect(received).toBe(expected) // Object.is equality"
+    },
+    {
+      "file": "features/transferencias/F_TRANSFERENCIAS.feature",
+      "title": "Transferencia rechazada por saldo insuficiente",
+      "project": "cucumber",
+      "step": "Given que la cuenta \"CA_GS\" tiene un saldo disponible de 0",
+      "category": "UNKNOWN",
+      "confidence": "medium",
+      "matchedRule": "test-timeout",
+      "healerAllowed": false,
+      "error": "Error: function timed out, ensure the promise resolves within 30000 milliseconds"
+    },
+    {
+      "file": "features/transferencias/F_TRANSFERENCIAS_TERCEROS.feature",
+      "title": "Transferencia a beneficiario registrado",
+      "project": "cucumber",
+      "step": "When transfiero 200000 al beneficiario \"Juan Pérez\"",
+      "category": "TEST_BUG",
+      "confidence": "medium",
+      "matchedRule": "step-undefined-or-pending",
+      "healerAllowed": false,
+      "error": "Undefined step: When transfiero 200000 al beneficiario \"Juan Pérez\""
+    },
+    {
+      "file": "features/transferencias/F_TRANSFERENCIAS_TERCEROS.feature",
+      "title": "Beneficiario duplicado",
+      "project": "cucumber",
+      "step": "When registro el beneficiario \"Juan Pérez\"",
+      "category": "TEST_BUG",
+      "confidence": "medium",
+      "matchedRule": "step-ambiguous",
+      "healerAllowed": false,
+      "error": "Ambiguous step: When registro el beneficiario \"Juan Pérez\""
+    }
+  ],
+  "flaky": []
+}

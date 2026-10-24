@@ -35,6 +35,20 @@ Detalle de campos y estados: `GET /api/v1/docs` y [`docs/API-SANDBOX.md`](../../
 
 ## Entregables
 
+### Trazabilidad BDD → API - Postman
+
+Se realizaron pruebas sobre la API AIQUA Sandbox para los escenarios correspondientes al Grupo 1 - Cuentas Bancarias.
+
+| Escenario BDD | Método | Endpoint | Resultado esperado |
+|---|---|---|---|
+| Listar cuentas activas | GET | `/api/v2/cuentas?estado={{estado_cuenta}}` | HTTP 200 y listado de cuentas con el estado solicitado |
+| Abrir una cuenta | POST | `/api/v2/cuentas` | HTTP 201 y creación correcta de la cuenta |
+| Obtener cuenta por ID | GET | `/api/v2/cuentas/{{cuenta_id}}` | HTTP 200 y datos de la cuenta solicitada |
+
+
+
+
+
 Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [ ] Análisis y alcance (sección de arriba completa)

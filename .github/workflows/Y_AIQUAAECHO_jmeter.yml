@@ -1,0 +1,218 @@
+name: JMeter AIQUAAECHO (flujo de prueba)
+
+# Flujo CI/CD de prueba: corre el plan P_AIQUAAECHO.jmx en modo headless contra
+# GET /api/perf/echo del sandbox, captura el dashboard de Grafana como
+# evidencia, genera el informe PDF con la skill de JMeter y deja el job en rojo
+# si no se cumplen los umbrales.
+
+on:
+  pull_request:
+    paths:
+      - 'tests/performance/plans/P_AIQUAAECHO.jmx'
+      - 'tests/performance/properties/sandbox.properties'
+      - 'skills/jmeter-skill/reporter/**'
+      - 'tests/performance/monitoring/**'
+      - '.github/workflows/Y_AIQUAAECHO_jmeter.yml'
+  workflow_dispatch:
+    inputs:
+      threads:
+        description: Usuarios concurrentes (closed workload)
+        required: false
+        default: '5'
+      requests:
+        description: >-
+          Total de requests (se reparte entre los usuarios); 0 = sin límite, corre
+          hasta cumplir la duración
+        required: false
+        default: '200'
+      duration:
+        description: Duración máxima en segundos (tope; la prueba termina antes si llega a requests)
+        required: false
+        default: '120'
+      target_per_min:
+        description: Throughput objetivo total en req/min (rate limit de la ruta = 3000)
+        required: false
+        default: '600'
+      delay_ms:
+        description: Latencia artificial del echo (delayMs, 0-5000)
+        required: false
+        default: '0'
+      monitoring_dashboard_url:
+        description: >-
+          URL pública de dashboard de monitoreo (Grafana, etc.) a capturar como evidencia
+          post-ejecución; dejar vacío para omitir la captura.
+        required: false
+        default: https://purplespinach239.grafana.net/public-dashboards/32c376cff7ef437faa3435bd863f5a79
+
+permissions:
+  contents: read
+
+env:
+  # En pull_request no hay inputs, así que se repiten los valores por defecto.
+  THREADS: ${{ inputs.threads || '5' }}
+  REQUESTS: ${{ inputs.requests || '200' }}
+  DURATION: ${{ inputs.duration || '120' }}
+  TARGET_PER_MIN: ${{ inputs.target_per_min || '600' }}
+  DELAY_MS: ${{ inputs.delay_ms || '0' }}
+  # En ejecución manual se respeta el input tal cual (vacío = sin captura).
+  MONITORING_DASHBOARD_URL: >-
+    ${{ github.event_name == 'workflow_dispatch' && inputs.monitoring_dashboard_url
+    || github.event_name != 'workflow_dispatch' && 'https://purplespinach239.grafana.net/public-dashboards/32c376cff7ef437faa3435bd863f5a79'
+    || '' }}
+  EVIDENCE_IMAGE: test-results/performance/evidence/EVIDENCIA_MONITOREO.png
+  # Umbrales del flujo: error rate máximo (%) y p95 máximo (ms).
+  SLA_ERROR_RATE: '1'
+  SLA_P95_MS: '800'
+  RESULTS_DIR: test-results/performance
+
+jobs:
+  performance:
+    name: Carga echo + informe PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Los PR desde forks no reciben el secret; se omiten en vez de fallar.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    environment: api_key
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar JMeter
+        run: |
+          curl --fail --location --silent --show-error https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz -o jmeter.tgz
+          tar -xzf jmeter.tgz
+
+      - name: Ejecutar plan headless
+        # La API key sale del secret API_KEY y se pasa como propiedad de JMeter;
+        # nunca se escribe en el plan ni en el archivo de propiedades.
+        # El Simple Data Writer del plan apunta por defecto al mismo archivo que
+        # -l; dos writers con columnas distintas dejan un JTL sin cabecera, así
+        # que su salida se redirige y -l queda como único JTL canónico.
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          if [ -z "$API_KEY" ]; then echo "::error::Falta el secret API_KEY"; exit 1; fi
+          mkdir -p "$RESULTS_DIR"
+          # JMeter limita la carga por iteraciones por hilo, así que el total se
+          # reparte entre los hilos (redondeo hacia arriba); -1 = hasta la duración.
+          if [ "${REQUESTS:-0}" -gt 0 ]; then LOOPS=$(( (REQUESTS + THREADS - 1) / THREADS )); else LOOPS=-1; fi
+          echo "LOOPS=$LOOPS" >> "$GITHUB_ENV"
+          echo "threads=$THREADS loops=$LOOPS (~$(( LOOPS * THREADS )) requests, tope $DURATION s)"
+          apache-jmeter-5.6.3/bin/jmeter -n -t tests/performance/plans/P_AIQUAAECHO.jmx \
+            -q tests/performance/properties/sandbox.properties \
+            -JapiKey="$API_KEY" \
+            -Jthreads="$THREADS" -Jloops="$LOOPS" -Jduration="$DURATION" \
+            -JtargetPerMin="$TARGET_PER_MIN" -JdelayMs="$DELAY_MS" \
+            -JjtlFile="$RESULTS_DIR/plan-writer.jtl" \
+            -l "$RESULTS_DIR/R_AIQUAAECHO.jtl" -e -o "$RESULTS_DIR/dashboard"
+
+      - name: Configurar Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            skills/jmeter-skill/reporter/requirements.txt
+            tests/performance/monitoring/requirements.txt
+
+      - name: Instalar dependencias del informe
+        if: always()
+        run: python -m pip install -r skills/jmeter-skill/reporter/requirements.txt
+
+      - name: Instalar dependencias de la captura de monitoreo
+        if: ${{ always() && env.MONITORING_DASHBOARD_URL != '' }}
+        run: python -m pip install -r tests/performance/monitoring/requirements.txt
+
+      - name: Capturar evidencia del dashboard de monitoreo
+        # Chrome viene preinstalado en los runners ubuntu-latest, así que
+        # Selenium Manager resuelve el driver por su cuenta. Una captura
+        # fallida no debe bloquear el informe, por eso continue-on-error.
+        if: ${{ always() && env.MONITORING_DASHBOARD_URL != '' }}
+        continue-on-error: true
+        run: |
+          python tests/performance/monitoring/capture_dashboard.py \
+            --url "$MONITORING_DASHBOARD_URL" \
+            --output "$EVIDENCE_IMAGE" \
+            --wait-seconds 8 \
+            --height 2400 \
+            --ready-timeout-seconds 180
+
+      - name: Generar informe PDF
+        if: always()
+        run: |
+          EVIDENCE_ARGS=()
+          if [ -f "$EVIDENCE_IMAGE" ]; then
+            EVIDENCE_ARGS=(--evidence-image "$EVIDENCE_IMAGE" \
+              --evidence-label "Dashboard de monitoreo" \
+              --evidence-url "$MONITORING_DASHBOARD_URL")
+          fi
+          python skills/jmeter-skill/reporter/jmeter_report.py \
+            --results "$RESULTS_DIR/R_AIQUAAECHO.jtl" \
+            --output "$RESULTS_DIR/INFORME_PERF_AIQUAAECHO.pdf" \
+            --api-name "aiquaa Sandbox API — GET /api/perf/echo" \
+            --perfil carga \
+            --threads "$THREADS" --loops "${LOOPS:--1}" \
+            --sla-error-rate "$SLA_ERROR_RATE" --sla-p95 "$SLA_P95_MS" \
+            --repo-url "${{ github.server_url }}/${{ github.repository }}" \
+            --author "Curso de Automatizacion" "${EVIDENCE_ARGS[@]}"
+
+      - name: Evaluar umbrales
+        # El reporter no devuelve código de salida según el veredicto, así que
+        # el gate se evalúa aparte, después de que el PDF ya quedó escrito.
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          sys.path.insert(0, "skills/jmeter-skill/reporter")
+          from jmeter_report import get_verdict, parse_jtl
+
+          sla_error = float(os.environ["SLA_ERROR_RATE"])
+          sla_p95 = float(os.environ["SLA_P95_MS"])
+          stats, _, _ = parse_jtl(os.path.join(os.environ["RESULTS_DIR"], "R_AIQUAAECHO.jtl"))
+          verdict, level = get_verdict(stats, sla_error_rate=sla_error, sla_p95=sla_p95)
+
+          rows = [
+              ("Requests", stats["total"]),
+              ("Throughput (req/s)", stats["throughput"]),
+              ("Promedio (ms)", stats["avg"]),
+              (f"P95 (ms) — umbral {sla_p95:g}", stats["p95"]),
+              (f"Error rate (%) — umbral {sla_error:g}", stats["error_rate"]),
+              ("Veredicto", verdict),
+          ]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("### JMeter AIQUAAECHO\n\n| Métrica | Valor |\n|---|---|\n")
+              summary.writelines(f"| {name} | {value} |\n" for name, value in rows)
+
+          print(f"Veredicto: {verdict}")
+          if level != "pass":
+              print(f"::error::Umbrales no cumplidos: {verdict}")
+              sys.exit(1)
+          PY
+
+      - name: Publicar informe PDF (se abre en el navegador)
+        # archive: false sube el PDF tal cual en vez de comprimido, así se abre
+        # directo desde la página de la ejecución sin descargar un zip.
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: test-results/performance/INFORME_PERF_AIQUAAECHO.pdf
+          archive: false
+          if-no-files-found: warn
+
+      - name: Publicar resultados JMeter
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jmeter-AIQUAAECHO
+          path: test-results/performance
+          if-no-files-found: warn
+          retention-days: 14

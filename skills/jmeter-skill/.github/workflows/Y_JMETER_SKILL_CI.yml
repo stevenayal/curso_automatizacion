@@ -1,0 +1,46 @@
+name: CI — jmeter-skill
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plan XML syntax
+        run: |
+          python3 -c "
+          import xml.etree.ElementTree as ET
+          ET.parse('examples/P_EXAMPLE_API.jmx')
+          print('P_ OK')
+          "
+
+      - name: Validate CSV structure
+        run: |
+          python3 -c "
+          import csv
+          with open('examples/D_EXAMPLE_API.csv') as f:
+              rows = list(csv.DictReader(f))
+          assert len(rows) >= 20, 'CSV debe tener al menos 20 filas'
+          assert 'username' in rows[0], 'CSV debe tener columna username'
+          print(f'D_ OK — {len(rows)} filas')
+          "
+
+      - name: Validate pipeline YML
+        run: |
+          python3 -c "import yaml; yaml.safe_load(open('examples/Y_EXAMPLE_API_jmeter.yml'))" && echo "Y_ OK"
+
+      - name: Install reporter deps
+        run: pip install reportlab pandas --quiet && echo "deps OK"
+
+      - name: Smoke test reporter — sin .jtl real
+        run: |
+          python3 -c "
+          import reporter.jmeter_report as r
+          print('reporter import OK')
+          print('parse_jtl, generate_report funciones presentes:', hasattr(r, 'parse_jtl') and hasattr(r, 'generate_report'))
+          "

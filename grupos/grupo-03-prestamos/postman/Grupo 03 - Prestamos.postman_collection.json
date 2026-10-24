@@ -1,0 +1,195 @@
+{
+  "info": {
+    "_postman_id": "796482b8-0d9e-45e7-aace-38bb3f62f4fc",
+    "name": "Grupo 03 - Prestamos",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "511204",
+    "_collection_link": "https://go.postman.co/collection/511204-796482b8-0d9e-45e7-aace-38bb3f62f4fc?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "04 - Prestamo en mora",
+      "item": [
+        {
+          "name": "GET cuotas vencidas de un prestamo en mora",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', function () {\n    pm.response.to.have.status(200);\n});\n\npm.test('Devuelve solo cuotas vencidas sin fecha de pago', function () {\n    var cuotas = pm.response.json().data;\n    pm.expect(cuotas).to.be.an('array').that.is.not.empty;\n    cuotas.forEach(function (cuota) {\n        pm.expect(cuota.prestamo_id).to.eql(Number(pm.variables.get('prestamo_mora_id')));\n        pm.expect(cuota.estado).to.eql('vencida');\n        pm.expect(cuota.fecha_pago).to.be.null;\n    });\n});\n\npm.test('Responde en menos de 3000 ms', function () {\n    pm.expect(pm.response.responseTime).to.be.below(3000);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_mora_id}}/cuotas?estado=vencida",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos",
+                "{{prestamo_mora_id}}",
+                "cuotas"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "vencida"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Consulta de prestamos",
+      "item": [
+        {
+          "name": "GET detalle de prestamo vigente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', function () {\n    pm.response.to.have.status(200);\n});\n\npm.test('Devuelve el saldo del prestamo vigente', function () {\n    var prestamo = pm.response.json().data;\n    pm.expect(prestamo.id).to.eql(Number(pm.variables.get('prestamo_vigente_id')));\n    pm.expect(prestamo.estado).to.eql('aprobado');\n    pm.expect(Number(prestamo.saldo_pendiente)).to.be.above(0);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_vigente_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos",
+                "{{prestamo_vigente_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET cuotas pendientes de prestamo vigente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', function () {\n    pm.response.to.have.status(200);\n});\n\npm.test('Devuelve cuotas pendientes del prestamo consultado', function () {\n    var cuotas = pm.response.json().data;\n    pm.expect(cuotas).to.be.an('array').that.is.not.empty;\n    cuotas.forEach(function (cuota) {\n        pm.expect(cuota.prestamo_id).to.eql(Number(pm.variables.get('prestamo_vigente_id')));\n        pm.expect(cuota.estado).to.eql('pendiente');\n        pm.expect(cuota.fecha_pago).to.be.null;\n    });\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/prestamos/{{prestamo_vigente_id}}/cuotas?estado=pendiente",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v2",
+                "prestamos",
+                "{{prestamo_vigente_id}}",
+                "cuotas"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "pendiente"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Prestamo pagado y caso negativo",
+      "item": [
+        {
+          "name": "GET detalle de prestamo pagado",
+          "event": [{
+            "listen": "test",
+            "script": {"type": "text/javascript", "exec": ["pm.test('Responde 200', function () { pm.response.to.have.status(200); });\npm.test('El prestamo no tiene saldo pendiente', function () {\n    var prestamo = pm.response.json().data;\n    pm.expect(prestamo.id).to.eql(Number(pm.variables.get('prestamo_pagado_id')));\n    pm.expect(prestamo.estado).to.eql('pagado');\n    pm.expect(Number(prestamo.saldo_pendiente)).to.eql(0);\n});"]}
+          }],
+          "request": {"method": "GET", "header": [{"key": "x-api-key", "value": "{{api_key}}"}], "url": "{{base_url}}/api/v2/prestamos/{{prestamo_pagado_id}}"},
+          "response": []
+        },
+        {
+          "name": "GET prestamo inexistente devuelve 404",
+          "event": [{
+            "listen": "test",
+            "script": {"type": "text/javascript", "exec": ["pm.test('Responde 404', function () { pm.response.to.have.status(404); });\npm.test('Informa el codigo NOT_FOUND', function () {\n    var error = pm.response.json().error;\n    pm.expect(error.code).to.eql('NOT_FOUND');\n});"]}
+          }],
+          "request": {"method": "GET", "header": [{"key": "x-api-key", "value": "{{api_key}}"}], "url": "{{base_url}}/api/v2/prestamos/{{prestamo_inexistente_id}}"},
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": ""
+    },
+    {"key": "prestamo_mora_id", "value": "4"},
+    {"key": "prestamo_vigente_id", "value": "2"},
+    {"key": "prestamo_pagado_id", "value": "6"},
+    {"key": "prestamo_inexistente_id", "value": "999999"}
+  ]
+}

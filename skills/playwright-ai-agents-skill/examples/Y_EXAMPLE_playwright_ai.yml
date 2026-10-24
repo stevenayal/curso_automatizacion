@@ -1,0 +1,113 @@
+# Y_EXAMPLE_playwright_ai.yml
+# Playwright determinístico + Test Impact Analysis + Failure Classifier — Example App
+# Generado por skill playwright-ai-agents · aiquaa.com
+#
+# CERO llamadas a modelos en este pipeline. La IA (Healer) corre fuera de CI, bajo demanda,
+# solo sobre los tests que CLASIF_*.json marca con healerAllowed=true.
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  nodeVersion: '20.x'
+  resultsDir: '$(Build.ArtifactStagingDirectory)/playwright-results'
+
+steps:
+
+  - checkout: self
+    fetchDepth: 0
+
+  - task: NodeTool@0
+    inputs:
+      versionSpec: $(nodeVersion)
+    displayName: Instalar Node.js
+
+  - script: npm ci
+    displayName: Instalar dependencias npm
+
+  - script: npx playwright install --with-deps chromium
+    displayName: Instalar Chromium
+
+  # Test Impact Analysis — PR: solo tags afectados. main/develop (nightly): suite completa.
+  # Mapa ruta → tag: mantener en sincronía con los tags de los T_*.spec.ts.
+  - script: |
+      set -euo pipefail
+      if [ "$(Build.Reason)" != "PullRequest" ]; then
+        echo "##vso[task.setvariable variable=grepArgs]"
+        echo "Build no-PR → suite completa"
+        exit 0
+      fi
+      target="origin/$(echo "$(System.PullRequest.TargetBranch)" | sed 's#refs/heads/##')"
+      changed=$(git diff --name-only "$target"...HEAD)
+      tags="@smoke"
+      echo "$changed" | grep -q '^src/transfers/'  && tags="$tags|@transferencias|@ledger"
+      echo "$changed" | grep -q '^src/payments/'   && tags="$tags|@pagos|@ledger|@cuentas"
+      echo "$changed" | grep -q '^src/auth/'       && tags="$tags|@login"
+      echo "$changed" | grep -qE '^(package(-lock)?\.json|playwright\.config\.ts)$' && tags=""
+      if [ -z "$tags" ]; then
+        echo "##vso[task.setvariable variable=grepArgs]"
+        echo "Cambio de dependencias/config → suite completa"
+      else
+        echo "##vso[task.setvariable variable=grepArgs]--grep \"$tags\""
+        echo "Tags afectados: $tags"
+      fi
+    displayName: Test Impact Analysis
+
+  - script: mkdir -p $(resultsDir)
+    displayName: Crear directorio de resultados
+
+  - script: eval npx playwright test $(grepArgs)
+    displayName: Ejecutar tests Playwright
+    continueOnError: true
+    env:
+      BASE_URL: $(baseUrl)
+      TEST_USER: $(testUser)
+      TEST_PASSWORD: $(testPassword)
+      CI: true
+
+  - script: |
+      if [ -f results/playwright-results.json ]; then
+        node scripts/classify-failures.mjs \
+          --input results/playwright-results.json \
+          --out   $(resultsDir)/CLASIF_EXAMPLE.json
+      else
+        echo "Sin playwright-results.json — nada que clasificar"
+      fi
+    displayName: Failure Classifier (determinístico, sin IA)
+    condition: always()
+    env:
+      AI_MAX_HEAL_ATTEMPTS: 2
+
+  - script: |
+      cp results/playwright-results.json $(resultsDir)/ 2>/dev/null || true
+      cp results/playwright-junit.xml    $(resultsDir)/ 2>/dev/null || true
+      cp -r results/playwright-report    $(resultsDir)/ 2>/dev/null || true
+    displayName: Copiar resultados
+    condition: always()
+
+  - task: PublishTestResults@2
+    condition: always()
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: '$(resultsDir)/playwright-junit.xml'
+      testRunTitle: 'Playwright E2E — Example App'
+      failTaskOnFailedTests: true
+    displayName: Publicar en Azure Test Plans
+
+  - task: PublishBuildArtifacts@1
+    condition: always()
+    inputs:
+      pathToPublish: $(Build.ArtifactStagingDirectory)
+      artifactName: playwright-results
+    displayName: Subir artefactos (incluye CLASIF_EXAMPLE.json)

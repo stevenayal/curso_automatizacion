@@ -1,0 +1,21 @@
+name: tesseract-skill-ci
+on:
+  push:
+    paths: ['tesseract-skill/**']
+  pull_request:
+    paths: ['tesseract-skill/**']
+jobs:
+  lint-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar que existan los archivos clave
+        run: |
+          test -f tesseract-skill/skills/tesseract/SKILL.md
+          test -f tesseract-skill/examples/ocr_local.py
+          test -f tesseract-skill/examples/ocr_batch.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compilar ejemplos
+        run: python -m py_compile tesseract-skill/examples/ocr_local.py tesseract-skill/examples/ocr_batch.py

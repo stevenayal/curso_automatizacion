@@ -1,0 +1,113 @@
+[
+  {
+    "uri": "features/transferencias/F_TRANSFERENCIAS.feature",
+    "name": "Transferencia entre cuentas propias",
+    "tags": [{ "name": "@transferencias" }, { "name": "@web" }],
+    "elements": [
+      {
+        "type": "background",
+        "name": "",
+        "steps": [
+          { "keyword": "Given ", "name": "que soy un cliente retail con sesión iniciada", "result": { "status": "passed" } }
+        ]
+      },
+      {
+        "type": "scenario",
+        "name": "Transferencia exitosa entre cuentas propias",
+        "tags": [{ "name": "@TRF-01" }, { "name": "@smoke" }],
+        "steps": [
+          { "keyword": "Given ", "name": "que soy un cliente retail con sesión iniciada", "result": { "status": "passed" } },
+          { "keyword": "Given ", "name": "que la cuenta \"CA_GS\" tiene un saldo disponible de 1000000", "result": { "status": "passed" } },
+          {
+            "keyword": "When ",
+            "name": "transfiero 500000 de \"CA_GS\" a \"CC_GS\"",
+            "result": {
+              "status": "failed",
+              "error_message": "locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Confirmar transferencia' })\n    at TransfersPage.transfer (pages/TransfersPage.ts:43:23)"
+            }
+          },
+          { "keyword": "Then ", "name": "veo la confirmación de la transferencia", "result": { "status": "skipped" } }
+        ]
+      },
+      {
+        "type": "scenario",
+        "name": "El saldo de origen se descuenta por el monto transferido",
+        "tags": [{ "name": "@TRF-02" }, { "name": "@ledger" }],
+        "steps": [
+          { "keyword": "Given ", "name": "que soy un cliente retail con sesión iniciada", "result": { "status": "passed" } },
+          { "keyword": "Given ", "name": "que la cuenta \"CA_GS\" tiene un saldo disponible de 1000000", "result": { "status": "passed" } },
+          { "keyword": "When ", "name": "transfiero 500000 de \"CA_GS\" a \"CC_GS\"", "result": { "status": "passed" } },
+          {
+            "keyword": "Then ",
+            "name": "el saldo disponible de \"CA_GS\" es 500000",
+            "result": {
+              "status": "failed",
+              "error_message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 500000\nReceived: 650000\n    at PlaywrightWorld.<anonymous> (steps/S_transferencias.steps.ts:40:43)"
+            }
+          }
+        ]
+      },
+      {
+        "type": "scenario",
+        "name": "Transferencia rechazada por saldo insuficiente",
+        "tags": [{ "name": "@TRF-03" }, { "name": "@negativo" }],
+        "steps": [
+          { "keyword": "Given ", "name": "que soy un cliente retail con sesión iniciada", "result": { "status": "passed" } },
+          { "keyword": "Given ", "name": "que la cuenta \"CA_GS\" tiene un saldo disponible de 100000", "result": { "status": "passed" } },
+          { "keyword": "When ", "name": "transfiero 100001 de \"CA_GS\" a \"CC_GS\"", "result": { "status": "passed" } },
+          { "keyword": "Then ", "name": "veo el rechazo \"Saldo insuficiente\"", "result": { "status": "passed" } },
+          { "keyword": "And ", "name": "el saldo disponible de \"CA_GS\" es 100000", "result": { "status": "passed" } }
+        ]
+      },
+      {
+        "type": "scenario",
+        "name": "Transferencia rechazada por saldo insuficiente",
+        "tags": [{ "name": "@TRF-03" }, { "name": "@negativo" }],
+        "steps": [
+          { "keyword": "Given ", "name": "que soy un cliente retail con sesión iniciada", "result": { "status": "passed" } },
+          {
+            "keyword": "Given ",
+            "name": "que la cuenta \"CA_GS\" tiene un saldo disponible de 0",
+            "result": {
+              "status": "failed",
+              "error_message": "Error: function timed out, ensure the promise resolves within 30000 milliseconds"
+            }
+          },
+          { "keyword": "When ", "name": "transfiero 1 de \"CA_GS\" a \"CC_GS\"", "result": { "status": "skipped" } }
+        ]
+      }
+    ]
+  },
+  {
+    "uri": "features/transferencias/F_TRANSFERENCIAS_TERCEROS.feature",
+    "name": "Transferencia a terceros",
+    "elements": [
+      {
+        "type": "scenario",
+        "name": "Transferencia a beneficiario registrado",
+        "tags": [{ "name": "@TRF-10" }],
+        "steps": [
+          { "keyword": "Given ", "name": "que soy un cliente retail con sesión iniciada", "result": { "status": "passed" } },
+          { "keyword": "When ", "name": "transfiero 200000 al beneficiario \"Juan Pérez\"", "result": { "status": "undefined" } },
+          { "keyword": "Then ", "name": "veo la confirmación de la transferencia", "result": { "status": "skipped" } }
+        ]
+      },
+      {
+        "type": "scenario",
+        "name": "Beneficiario duplicado",
+        "tags": [{ "name": "@TRF-11" }],
+        "steps": [
+          { "keyword": "Given ", "name": "que soy un cliente retail con sesión iniciada", "result": { "status": "passed" } },
+          {
+            "keyword": "When ",
+            "name": "registro el beneficiario \"Juan Pérez\"",
+            "result": {
+              "status": "ambiguous",
+              "error_message": "Multiple step definitions match:\n  registro el beneficiario {string} - steps/S_beneficiarios.steps.ts:12\n  registro el beneficiario {string} - steps/S_terceros.steps.ts:30"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

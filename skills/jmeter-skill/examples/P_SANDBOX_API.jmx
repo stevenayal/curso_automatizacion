@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="P_SANDBOX_API" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <!-- Entorno del sandbox — ver skill sandbox para el contrato -->
+          <elementProp name="baseUrl" elementType="Argument">
+            <stringProp name="Argument.name">baseUrl</stringProp>
+            <stringProp name="Argument.value">${__P(baseUrl,aiquaa-sandbox-api.vercel.app)}</stringProp>
+          </elementProp>
+          <elementProp name="port" elementType="Argument">
+            <stringProp name="Argument.name">port</stringProp>
+            <stringProp name="Argument.value">${__P(port,443)}</stringProp>
+          </elementProp>
+          <elementProp name="protocol" elementType="Argument">
+            <stringProp name="Argument.name">protocol</stringProp>
+            <stringProp name="Argument.value">${__P(protocol,https)}</stringProp>
+          </elementProp>
+          <elementProp name="apiKey" elementType="Argument">
+            <stringProp name="Argument.name">apiKey</stringProp>
+            <stringProp name="Argument.value">${__P(apiKey,)}</stringProp>
+          </elementProp>
+          <elementProp name="csvFile" elementType="Argument">
+            <stringProp name="Argument.name">csvFile</stringProp>
+            <stringProp name="Argument.value">${__P(csvFile,data/V_PERFILES.properties)}</stringProp>
+          </elementProp>
+          <!-- Perfil de carga — ver references/perfiles.md. Todo por -J, cero edición de XML -->
+          <elementProp name="perfil" elementType="Argument">
+            <stringProp name="Argument.name">perfil</stringProp>
+            <stringProp name="Argument.value">${__P(perfil,baseline)}</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+
+      <!-- ═══ THREAD GROUP — property-driven, ver references/perfiles.md ═══ -->
+      <!-- threads/rampup/loops/duration se pasan por -J en la línea de comandos.
+           loops=-1 + scheduler=true + duration=N  → modo resistencia/carga por tiempo.
+           loops=N  + duration grande (default)     → modo baseline/estrés por iteraciones. -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="Sandbox API — perfil ${perfil}" enabled="true">
+        <stringProp name="ThreadGroup.num_threads">${__P(threads,1)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(rampup,0)}</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">${__P(duration,3600)}</stringProp>
+        <stringProp name="ThreadGroup.delay">0</stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${__P(loops,10)}</stringProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <!-- ═══ CSV DATA SET CONFIG — parametrización (LO12-13) ═══ -->
+        <!-- D_SANDBOX_API.csv: usuarioId,producto,precioUnitario — ver reglas del CSV en SKILL.md -->
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet"
+                    testname="CSV Data Set Config" enabled="true">
+          <stringProp name="filename">${__P(csvData,data/D_SANDBOX_API.csv)}</stringProp>
+          <stringProp name="fileEncoding">UTF-8</stringProp>
+          <stringProp name="variableNames">usuarioId,producto,precioUnitario</stringProp>
+          <stringProp name="delimiter">,</stringProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+
+        <!-- ═══ HTTP REQUEST DEFAULTS ═══ -->
+        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement"
+                           testname="HTTP Request Defaults" enabled="true">
+          <stringProp name="HTTPSampler.domain">${baseUrl}</stringProp>
+          <stringProp name="HTTPSampler.port">${port}</stringProp>
+          <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+          <intProp name="HTTPSampler.connect_timeout">5000</intProp>
+          <intProp name="HTTPSampler.response_timeout">15000</intProp>
+        </ConfigTestElement>
+        <hashTree/>
+
+        <!-- ═══ HEADER MANAGER — x-api-key, ver skill sandbox ═══ -->
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                       testname="HTTP Header Manager — x-api-key" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="x-api-key" elementType="Header">
+              <stringProp name="Header.name">x-api-key</stringProp>
+              <stringProp name="Header.value">${apiKey}</stringProp>
+            </elementProp>
+            <elementProp name="Content-Type" elementType="Header">
+              <stringProp name="Header.name">Content-Type</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+
+        <!-- ═══ CONSTANT THROUGHPUT TIMER — pacing, LO14 ═══ -->
+        <!-- Deshabilitado por defecto (enabled="false") — el "golpe instantáneo" sin pacing
+             es el comportamiento base de esta skill. Poner enabled="true" y ajustar
+             throughput (muestras/min, "all active threads") para simular carga realista
+             en vez de ráfaga. Ver SKILL.md sección Temporizadores. -->
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer"
+                                 testname="Constant Throughput Timer — pacing" enabled="false">
+          <intProp name="calcMode">2</intProp>
+          <doubleProp>
+            <name>throughput</name>
+            <value>${__P(throughput,600)}</value>
+            <savedValue>0.0</savedValue>
+          </doubleProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
+
+        <!-- ═══ TRANSACTION CONTROLLER — "Crear y consultar orden" ═══ -->
+        <!-- Agrupa la secuencia de negocio (LO14) — se reporta como una sola transacción -->
+        <TransactionController guiclass="TransactionControllerGui" testclass="TransactionController"
+                               testname="Transacción — Crear y consultar orden" enabled="true">
+          <boolProp name="TransactionController.includeTimers">true</boolProp>
+          <boolProp name="TransactionController.parent">true</boolProp>
+        </TransactionController>
+        <hashTree>
+
+          <!-- ═══ SAMPLER 1 — POST /api/v1/ordenes ═══ -->
+          <!-- Parametrización: precioUnitario del CSV + cantidad aleatoria evita colisión
+               de datos y el 400 EXECUTION_ERROR por UNIQUE en otros endpoints (LO12-13) -->
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                            testname="POST /api/v1/ordenes" enabled="true">
+            <stringProp name="HTTPSampler.path">/api/v1/ordenes</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{"usuarioId": ${usuarioId}, "items": [{"producto": "${producto}", "cantidad": ${__Random(1,5)}, "precioUnitario": ${precioUnitario}}]}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+
+            <!-- ═══ JSON EXTRACTOR — correlación (LO10-11): capturar el id de la orden ═══ -->
+            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor"
+                               testname="JSON Extractor — ordenId" enabled="true">
+              <stringProp name="JSONPostProcessor.referenceNames">ordenId</stringProp>
+              <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.id</stringProp>
+              <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+              <stringProp name="JSONPostProcessor.defaultValues">ORDEN_ID_NO_ENCONTRADO</stringProp>
+            </JSONPostProcessor>
+            <hashTree/>
+
+            <!-- ═══ REGEX EXTRACTOR — mismo dato, ejemplo alternativo de correlación (LO10-11) ═══ -->
+            <RegexExtractor guiclass="RegexExtractorGui" testclass="RegexExtractor"
+                            testname="Regex Extractor — ordenId (alternativa)" enabled="false">
+              <stringProp name="RegexExtractor.useHeaders">false</stringProp>
+              <stringProp name="RegexExtractor.refname">ordenId_regex</stringProp>
+              <stringProp name="RegexExtractor.regex">"id":(.+?),</stringProp>
+              <stringProp name="RegexExtractor.template">$1$</stringProp>
+              <stringProp name="RegexExtractor.default">ORDEN_ID_NO_ENCONTRADO</stringProp>
+              <stringProp name="RegexExtractor.match_number">1</stringProp>
+            </RegexExtractor>
+            <hashTree/>
+
+            <!-- ═══ ASSERTIONS ═══ -->
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                               testname="Assert Status 201" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp>201</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <intProp name="Assertion.test_type">8</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+
+            <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                               testname="Assert Tiempo &lt; ${__P(slaMs,2000)}ms" enabled="true">
+              <longProp name="DurationAssertion.duration">${__P(slaMs,2000)}</longProp>
+            </DurationAssertion>
+            <hashTree/>
+
+          </hashTree>
+
+          <!-- ═══ SAMPLER 2 — GET /api/v1/ordenes/{ordenId} — reusa el valor correlacionado ═══ -->
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                            testname="GET /api/v1/ordenes/{ordenId}" enabled="true">
+            <stringProp name="HTTPSampler.path">/api/v1/ordenes/${ordenId}</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                               testname="Assert Status 200" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp>200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <intProp name="Assertion.test_type">8</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+
+            <JSONPathAssertion guiclass="JSONPathAssertionGui" testclass="JSONPathAssertion"
+                               testname="Assert JSON — items no vacío" enabled="true">
+              <stringProp name="JSON_PATH">$.data.items</stringProp>
+              <boolProp name="JSONVALIDATION">false</boolProp>
+              <boolProp name="EXPECT_NULL">false</boolProp>
+              <boolProp name="INVERT">false</boolProp>
+              <boolProp name="ISREGEX">false</boolProp>
+            </JSONPathAssertion>
+            <hashTree/>
+
+          </hashTree>
+
+        </hashTree>
+
+        <!-- ═══ DEBUG SAMPLER — solo para GUI, desactivar antes de correr headless (LO15) ═══ -->
+        <DebugSampler guiclass="TestBeanGUI" testclass="DebugSampler"
+                     testname="Debug Sampler — variables (desactivar en CI)" enabled="false">
+          <boolProp name="displayJMeterVariables">true</boolProp>
+          <boolProp name="displayJMeterProperties">false</boolProp>
+          <boolProp name="displaySystemProperties">false</boolProp>
+        </DebugSampler>
+        <hashTree/>
+
+        <!-- ═══ SIMPLE DATA WRITER — resultados .jtl ═══ -->
+        <ResultCollector guiclass="SimpleDataWriter" testclass="ResultCollector"
+                         testname="Simple Data Writer" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <responseData>false</responseData>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>false</subresults>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <bytes>true</bytes>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename">${__P(resultsFile,results/R_SANDBOX_API.jtl)}</stringProp>
+        </ResultCollector>
+        <hashTree/>
+
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

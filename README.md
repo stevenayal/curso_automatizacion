@@ -20,6 +20,9 @@ Request.
 Un solo grupo por estudiante, máximo 3 integrantes. Lista de la clase en
 [`docs/ROSTER.md`](docs/ROSTER.md).
 
+Los requerimientos funcionales de cada módulo (un PDF por grupo, base para los escenarios BDD)
+están en [`docs/requerimientos/`](docs/requerimientos/README.md).
+
 > Préstamos y Ahorros/Depósitos todavía no tienen endpoints REST publicados: esos grupos
 > arrancan por BDD + validación SQL contra la base. Detalle en el README de cada grupo.
 
@@ -75,7 +78,9 @@ Si `npm run smoke` pasa sin errores, el entorno está bien configurado.
 curso_automatizacion/
 ├── .github/
 │   ├── pull_request_template.md   # plantilla de PR
-│   └── workflows/qa-checks.yml    # CI: BDD + smoke UI, y Newman a demanda
+│   └── workflows/
+│       ├── qa-checks.yml              # CI: BDD + smoke UI, y Newman a demanda
+│       └── Y_AIQUAAECHO_jmeter.yml    # flujo de prueba: carga JMeter + informe PDF
 ├── ci/                            # plantilla de pipeline de referencia
 ├── docs/
 │   ├── ACCESO-DB.md               # host, usuarios por grupo, cómo conectarse

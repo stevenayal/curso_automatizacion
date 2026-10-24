@@ -1,0 +1,21 @@
+name: markitdown-skill-ci
+on:
+  push:
+    paths: ['markitdown-skill/**']
+  pull_request:
+    paths: ['markitdown-skill/**']
+jobs:
+  lint-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar que existan los archivos clave
+        run: |
+          test -f markitdown-skill/skills/markitdown/SKILL.md
+          test -f markitdown-skill/examples/convert_local.py
+          test -f markitdown-skill/examples/convert_batch.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compilar ejemplos
+        run: python -m py_compile markitdown-skill/examples/convert_local.py markitdown-skill/examples/convert_batch.py

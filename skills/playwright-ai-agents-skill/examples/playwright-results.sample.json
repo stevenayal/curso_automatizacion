@@ -1,0 +1,199 @@
+{
+  "config": { "version": "1.49.0" },
+  "suites": [
+    {
+      "title": "T_TRANSFERENCIA_EXITOSA.spec.ts",
+      "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+      "specs": [],
+      "suites": [
+        {
+          "title": "Transferencias — cuentas propias",
+          "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+          "specs": [
+            {
+              "title": "transferencia exitosa entre cuentas propias @transferencias @smoke",
+              "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+              "tests": [
+                {
+                  "projectName": "chromium",
+                  "status": "unexpected",
+                  "results": [
+                    {
+                      "retry": 0,
+                      "status": "failed",
+                      "error": {
+                        "message": "Error: locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Confirmar transferencia' })"
+                      }
+                    },
+                    {
+                      "retry": 1,
+                      "status": "failed",
+                      "error": {
+                        "message": "\u001b[31mError: locator.click: Timeout 15000ms exceeded.\u001b[39m\nCall log:\n  - waiting for getByRole('button', { name: 'Confirmar transferencia' })"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "projectName": "firefox",
+                  "status": "unexpected",
+                  "results": [
+                    {
+                      "retry": 0,
+                      "status": "failed",
+                      "error": {
+                        "message": "Error: browserType.launch: Executable doesn't exist at /ms-playwright/firefox-1466/firefox/firefox"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "saldo origen se descuenta por el monto transferido @transferencias @ledger",
+              "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+              "tests": [
+                {
+                  "projectName": "chromium",
+                  "status": "unexpected",
+                  "results": [
+                    {
+                      "retry": 0,
+                      "status": "failed",
+                      "error": {
+                        "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 1000000\nReceived: 850000"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "mensaje de confirmación visible @transferencias",
+              "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+              "tests": [
+                {
+                  "projectName": "chromium",
+                  "status": "unexpected",
+                  "results": [
+                    {
+                      "retry": 0,
+                      "status": "failed",
+                      "error": {
+                        "message": "Error: Timed out 5000ms waiting for expect(locator).toHaveText(expected)\n\nLocator: getByTestId('transfer-success')\nExpected string: \"Transferencia realizada\"\nReceived string: \"Transferencia realizada con éxito\"\nCall log:\n  - waiting for getByTestId('transfer-success')"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "comprobante descargable @transferencias",
+              "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+              "tests": [
+                {
+                  "projectName": "chromium",
+                  "status": "flaky",
+                  "results": [
+                    {
+                      "retry": 0,
+                      "status": "failed",
+                      "error": { "message": "Error: Timed out 5000ms waiting for expect(locator).toBeVisible()" }
+                    },
+                    { "retry": 1, "status": "passed" }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "historial muestra la transferencia @transferencias",
+              "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+              "tests": [
+                {
+                  "projectName": "chromium",
+                  "status": "expected",
+                  "results": [{ "retry": 0, "status": "passed" }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "T_TRANSFERENCIAS_API.spec.ts",
+      "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+      "specs": [
+        {
+          "title": "POST /api/transfers retorna 201",
+          "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+          "tests": [
+            {
+              "projectName": "api",
+              "status": "unexpected",
+              "results": [
+                {
+                  "retry": 0,
+                  "status": "failed",
+                  "error": { "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 201\nReceived: 500" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "POST /api/beneficiaries crea beneficiario",
+          "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+          "tests": [
+            {
+              "projectName": "api",
+              "status": "unexpected",
+              "results": [
+                {
+                  "retry": 0,
+                  "status": "failed",
+                  "error": { "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 201\nReceived: 409" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "GET /api/accounts responde",
+          "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+          "tests": [
+            {
+              "projectName": "api",
+              "status": "unexpected",
+              "results": [
+                {
+                  "retry": 0,
+                  "status": "failed",
+                  "error": { "message": "Error: apiRequestContext.get: connect ECONNREFUSED 10.0.0.12:8080" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "exporta extracto en PDF",
+          "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+          "tests": [
+            {
+              "projectName": "api",
+              "status": "unexpected",
+              "results": [
+                {
+                  "retry": 0,
+                  "status": "failed",
+                  "error": { "message": "Error: Unexpected token '<' in PDF stream parser" }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "stats": { "expected": 1, "unexpected": 8, "flaky": 1, "skipped": 0 }
+}

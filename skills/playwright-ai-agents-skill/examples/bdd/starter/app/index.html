@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<title>Tareas — demo BDD</title>
+<main>
+  <h1>Mis tareas</h1>
+  <form>
+    <label for="task">Tarea</label>
+    <input id="task" autocomplete="off">
+    <button type="submit">Agregar</button>
+  </form>
+  <p role="alert"></p>
+  <ul aria-label="Tareas"></ul>
+</main>
+<script>
+  const input = document.querySelector('input');
+  const list = document.querySelector('ul');
+  const alert = document.querySelector('[role="alert"]');
+  const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+  function render() {
+    list.replaceChildren(...tasks.map(title => {
+      const item = document.createElement('li');
+      item.textContent = title;
+      return item;
+    }));
+  }
+  document.querySelector('form').addEventListener('submit', event => {
+    event.preventDefault();
+    const title = input.value.trim();
+    if (!title) {
+      alert.textContent = 'Escribe una tarea';
+      return;
+    }
+    tasks.push(title);
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    alert.textContent = '';
+    input.value = '';
+    render();
+  });
+  render();
+</script>
+</html>
