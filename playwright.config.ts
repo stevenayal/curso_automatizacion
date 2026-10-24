@@ -10,7 +10,11 @@ export default defineConfig({
   testIgnore: ['**/.claude/**', '**/node_modules/**'],
   timeout: 30_000,
   retries: 1,
-  reporter: [['html', { open: 'never' }], ['list']],
+  reporter: [
+    ['html', { open: 'never' }],
+    ['list'],
+    ['allure-playwright', { resultsDir: 'allure-results' }],
+  ],
 
   use: {
     baseURL: process.env.BASE_URL || 'https://aiquaa-sandbox-web.vercel.app',
