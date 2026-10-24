@@ -3,8 +3,9 @@
 **Módulo:** Ahorros, depósitos, tasas, plazos y vencimientos
 **Rama / carpeta:** `grupo-05-ahorros-depositos`
 
-> **Nota:** los endpoints REST de ahorros/depósitos ya están publicados en la **v2** de la sandbox
-> (`/api/v2/ahorros`, `/api/v2/depositos`). La fuente de verdad del contrato es `GET /api/v2/docs`.
+> **Nota:** los endpoints REST de ahorros/depósitos **todavía no están publicados** en la sandbox
+> API. Arranquen por BDD + validación SQL (sandbox `/api/v1/sql/*` y acceso directo a la DB) y
+> sumen la capa REST en cuanto salgan. Verificar disponibilidad con `GET /api/v1/docs`.
 
 ## Integrantes
 
@@ -12,10 +13,9 @@ Máximo 3. Completar con nombre y email (ver [`docs/ROSTER.md`](../../docs/ROSTE
 
 | # | Nombre y apellido | Email |
 |---|---|---|
-| 1 | Marcos Flores |  |
-| 2 | Jackelin Peña |  |
-| 3 | Ada Melgarejo |  |
-| 4 | Jessica Escobar |  |
+| 1 |  |  |
+| 2 |  |  |
+| 3 |  |  |
 
 ## Alcance
 
@@ -31,18 +31,21 @@ Completar antes de escribir el primer escenario:
 
 | Capa | Recursos |
 |---|---|
-| REST (v2) | `GET\|POST /api/v2/depositos` · `GET /api/v2/depositos/{id}` · `POST /api/v2/depositos/{id}/cancelar` · `GET\|POST /api/v2/ahorros` · `GET\|PUT\|DELETE /api/v2/ahorros/{id}` · `POST /api/v2/ahorros/{id}/aportar` |
-| SQL sandbox (v2) | `POST /api/v2/sql/select` sobre el schema `qa_training_v2` (`cuentas`, `movimientos`, `ahorros`, `depositos`, …) |
+| REST | *por publicar* — revisar `GET /api/v1/docs` |
+| SQL sandbox | `POST /api/v1/sql/select`, `POST /api/v1/sql/update` sobre `ahorros` y `depositos` (nombres a confirmar contra la DB) |
 | DB directa | usuario `qa_g05` — ver [`docs/ACCESO-DB.md`](../../docs/ACCESO-DB.md) |
+
+Mientras tanto, las cuentas de tipo `ahorro` de `GET /api/v1/cuentas` y sus `movimientos` sirven
+para practicar el flujo de depósito/retiro sobre datos que ya existen.
 
 ## Entregables
 
 Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [ ] Análisis y alcance (sección de arriba completa)
-- [x] BDD — `features/ahorros-depositos.feature` (happy path, negativo y edge case)
-- [x] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico
+- [ ] BDD — `features/ahorros-depositos.feature` (happy path, negativo y edge case)
+- [ ] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico
 - [ ] UI — `tests/e2e/ahorros-depositos.spec.ts` con Playwright
-- [x] Evidencias en `evidence/` (semana 3: corrida de Newman en `evidence/semana-03/`)
+- [ ] Evidencias en `evidence/`
 - [ ] CI/CD verde
 - [ ] PR de `grupo-05-ahorros-depositos` hacia `main` usando la plantilla del repo

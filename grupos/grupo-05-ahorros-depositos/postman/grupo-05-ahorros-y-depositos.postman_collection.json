@@ -2,31 +2,13 @@
   "info": {
     "_postman_id": "92f8bdfe-a117-4d5b-9b6e-91ca506b73cd",
     "name": "Grupo 05 - Ahorros y Depositos - 5 escenarios",
-    "description": "Colección unificada: tres escenarios de depósitos, cancelación anticipada y consulta de plan de ahorro por ID. Configurar apiKey e IDs válidos antes de ejecutar. ATENCIÓN: el escenario de cancelación ejecuta una operación real y espera éxito (200/cancelado); NO corresponde al escenario BDD negativo que exige rechazar la cancelación. Ejecutarlo solo con un depósito de prueba descartable, porque cambia su estado y puede impedir repetir las pruebas del depósito vigente.\n\nSEMANA 3 - Patron SQL REST dinamico: los ids de los escenarios se obtienen de la BD via POST /api/v2/sql/select; el escenario 4 cancela un deposito descartable que crea en su pre-request; se agrego la carpeta 'E2E - Flujos con validacion SQL'. Correr la coleccion completa (el helper utils se declara en el pre-request de la coleccion).",
+    "description": "Colección unificada: tres escenarios de depósitos, cancelación anticipada y consulta de plan de ahorro por ID. Configurar apiKey e IDs válidos antes de ejecutar. ATENCIÓN: el escenario de cancelación ejecuta una operación real y espera éxito (200/cancelado); NO corresponde al escenario BDD negativo que exige rechazar la cancelación. Ejecutarlo solo con un depósito de prueba descartable, porque cambia su estado y puede impedir repetir las pruebas del depósito vigente.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
       "name": "Escenario 1 - Consultar deposito a plazo vigente",
       "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "// Obtencion dinamica: toma de la BD un deposito que siga 'activo'.",
-              "const consultaSql = utils.bodySqlRest(",
-              "  \"SELECT id FROM depositos WHERE estado = $1 AND activo = true ORDER BY id LIMIT 1\",",
-              "  [\"activo\"]",
-              ");",
-              "pm.sendRequest(consultaSql, (err, res) => {",
-              "  if (err) { console.error(\"Pre-request SQL fallo:\", err); return; }",
-              "  const fila = (res.json().data || [])[0];",
-              "  if (fila) { pm.collectionVariables.set(\"depositoVigenteId\", fila.id); }",
-              "});"
-            ]
-          }
-        },
         {
           "listen": "test",
           "script": {
@@ -54,7 +36,7 @@
           }
         ],
         "url": {
-          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}",
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}?=",
           "host": [
             "{{baseUrl}}"
           ],
@@ -63,6 +45,12 @@
             "v2",
             "depositos",
             "{{depositoVigenteId}}"
+          ],
+          "query": [
+            {
+              "key": "",
+              "value": ""
+            }
           ]
         },
         "description": "BDD: Dado que el cliente tiene un deposito a plazo vigente; cuando consulta su detalle; entonces recibe capital, tasa y vencimiento.",
@@ -75,24 +63,6 @@
     {
       "name": "Escenario 2 - Deposito en su fecha de vencimiento",
       "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "// Obtencion dinamica: toma de la BD un deposito en estado 'vencido'.",
-              "const consultaSql = utils.bodySqlRest(",
-              "  \"SELECT id FROM depositos WHERE estado = $1 AND activo = true ORDER BY fecha_vencimiento DESC LIMIT 1\",",
-              "  [\"vencido\"]",
-              ");",
-              "pm.sendRequest(consultaSql, (err, res) => {",
-              "  if (err) { console.error(\"Pre-request SQL fallo:\", err); return; }",
-              "  const fila = (res.json().data || [])[0];",
-              "  if (fila) { pm.collectionVariables.set(\"depositoVencidoId\", fila.id); }",
-              "});"
-            ]
-          }
-        },
         {
           "listen": "test",
           "script": {
@@ -184,38 +154,6 @@
       "name": "Escenario 4 - Cancelar deposito a plazo antes de su vencimiento",
       "event": [
         {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "// Crea un deposito descartable para cancelar, en vez de cancelar un",
-              "// deposito existente de la BD. Su id queda en depositoCancelarId, que es",
-              "// la variable que ya usan los tests de este escenario.",
-              "pm.sendRequest({",
-              "  url: pm.variables.get(\"baseUrl\") + \"/api/v2/depositos\",",
-              "  method: \"POST\",",
-              "  header: {",
-              "    \"Content-Type\": \"application/json\",",
-              "    \"x-api-key\": pm.variables.get(\"apiKey\")",
-              "  },",
-              "  body: {",
-              "    mode: \"raw\",",
-              "    raw: JSON.stringify({",
-              "      usuarioId: Number(pm.collectionVariables.get(\"usuarioId\")),",
-              "      cuentaId: Number(pm.collectionVariables.get(\"cuentaId\")),",
-              "      monto: 100000,",
-              "      plazoDias: 90,",
-              "      tasaAnual: 10",
-              "    })",
-              "  }",
-              "}, (err, res) => {",
-              "  if (err || res.code !== 201) { console.error(\"No se pudo crear el deposito a cancelar\", err || res.code); return; }",
-              "  pm.variables.set(\"depositoCancelarId\", res.json().data.id);",
-              "});"
-            ]
-          }
-        },
-        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
@@ -276,7 +214,7 @@
           }
         ],
         "url": {
-          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoCancelarId}}/cancelar",
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}/cancelar",
           "host": [
             "{{baseUrl}}"
           ],
@@ -284,7 +222,7 @@
             "api",
             "v2",
             "depositos",
-            "{{depositoCancelarId}}",
+            "{{depositoVigenteId}}",
             "cancelar"
           ]
         },
@@ -295,23 +233,6 @@
     {
       "name": "Escenario 5 - Obtener plan de ahorro por ID",
       "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "// Obtencion dinamica: toma de la BD un plan de ahorro existente.",
-              "const consultaSql = utils.bodySqlRest(",
-              "  \"SELECT id FROM ahorros WHERE activo = true ORDER BY id LIMIT 1\"",
-              ");",
-              "pm.sendRequest(consultaSql, (err, res) => {",
-              "  if (err) { console.error(\"Pre-request SQL fallo:\", err); return; }",
-              "  const fila = (res.json().data || [])[0];",
-              "  if (fila) { pm.collectionVariables.set(\"ahorroId\", fila.id); }",
-              "});"
-            ]
-          }
-        },
         {
           "listen": "test",
           "script": {
@@ -329,7 +250,7 @@
               "",
               "pm.test('El ID del plan de ahorro es correcto', function () {",
               "    const response = pm.response.json();",
-              "    pm.expect(response.data.id).to.eql(Number(pm.variables.get('ahorroId')));",
+              "    pm.expect(response.id).to.eql(Number(pm.variables.get('ahorroId')));",
               "});",
               "",
               "pm.test('El tiempo de respuesta es menor a 3000 ms', function () {",
