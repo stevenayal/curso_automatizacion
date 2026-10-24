@@ -1,5 +1,5 @@
 # language: es
-@grupo-01 @cuentas-bancarias
+@wip @grupo-01 @cuentas-bancarias
 Característica: Gestión de cuentas bancarias
   Como usuario del módulo de cuentas bancarias
   quiero gestionar cuentas, saldos, estados y movimientos
