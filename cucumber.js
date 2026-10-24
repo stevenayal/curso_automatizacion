@@ -11,7 +11,8 @@ module.exports = {
     require: require_,
     requireModule: ['ts-node/register'],
     tags: 'not @wip',
-    format: ['progress', 'json:newman/cucumber-report.json'],
+    // El JSON alimenta el informe PDF generado por el pipeline de CI.
+    format: ['progress', 'json:results/cucumber-report.json'],
     formatOptions: { snippetInterface: 'async-await' },
   },
   wip: {

@@ -1,9 +1,7 @@
 name: BDD + POM (sandbox)
 
-# Semana 7: ejecutar en CI la suite BDD conocida (Cucumber + Playwright + POM),
-# conservar el informe aunque una prueba falle y dejar trazabilidad de la version probada.
-# CI ejecuta codigo aprobado: sin llamadas a modelos de IA.
-
+# Semana 7: ejecuta la suite BDD/POM aprobada y publica un informe PDF con
+# resultados, logs, evidencia visual y el codigo de las pruebas ejecutadas.
 on:
   workflow_dispatch:
     inputs:
@@ -12,26 +10,30 @@ on:
         required: false
         default: "not @wip"
   pull_request:
+    branches: [main, develop]
     paths:
       - 'features/**'
       - 'grupos/**/features/**'
-      - 'tests/bdd/**'
-      - 'playwright/pages/**'
-      - 'scripts/check-cucumber-results.mjs'
+      - 'grupos/**/tests/**'
+      - 'tests/**'
+      - 'playwright/**'
+      - 'scripts/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/bdd-pom-ci.yml'
+  push:
+    branches: [main, develop, "grupo-*/**", "semana-*/**"]
 
 permissions:
   contents: read
 
 concurrency:
-  group: bdd-pom-${{ github.ref }}
+  group: bdd-pom-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  bdd:
-    name: Cucumber + Playwright + POM
+  bdd-pom:
+    name: BDD, POM y evidencias PDF
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -39,8 +41,10 @@ jobs:
       BASE_URL: ${{ vars.BASE_URL_SANDBOX || 'https://aiquaa-sandbox-web.vercel.app' }}
       CUCUMBER_TAGS: ${{ inputs.tags || 'not @wip' }}
       HEADED: '0'
+      CI: true
+
     steps:
-      - name: Checkout
+      - name: Checkout del repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -49,30 +53,72 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Instalar dependencias (package-lock.json)
-        run: npm ci
+      - name: Configurar Python para el informe
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Instalar Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Preparar directorios de evidencia
+        run: mkdir -p ci-evidence results
 
-      - name: Revision sin ejecutar (dry-run)
-        run: npx cucumber-js --config "$BDD_CONFIG" --profile dryrun
+      - name: Instalar dependencias
+        run: npm ci 2>&1 | tee ci-evidence/01-instalacion-dependencias.log
 
-      # El perfil sandbox ya escribe progress + results/cucumber.html + results/cucumber.json.
-      - name: Ejecutar suite BDD
-        run: npx cucumber-js --config "$BDD_CONFIG" --profile sandbox
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium 2>&1 | tee ci-evidence/02-instalacion-playwright.log
 
-      - name: Resumen y control de cero escenarios
+      - name: Revision BDD sin ejecutar
+        id: dryrun
+        continue-on-error: true
+        run: npx cucumber-js --config "$BDD_CONFIG" --profile dryrun 2>&1 | tee ci-evidence/03-dry-run-bdd.log
+
+      - name: Ejecutar escenarios BDD con POM
+        id: bdd
+        continue-on-error: true
+        run: npx cucumber-js --config "$BDD_CONFIG" --profile sandbox 2>&1 | tee ci-evidence/04-ejecucion-bdd.log
+
+      - name: Validar resultados BDD
+        id: bdd-summary
         if: always()
-        run: node scripts/check-cucumber-results.mjs results/cucumber.json
+        continue-on-error: true
+        run: node scripts/check-cucumber-results.mjs results/cucumber.json 2>&1 | tee ci-evidence/05-resumen-bdd.log
 
-      - name: Guardar informes
+      - name: Ejecutar pruebas UI de Playwright
+        id: playwright
+        if: always()
+        continue-on-error: true
+        run: npm run test:e2e 2>&1 | tee ci-evidence/06-ejecucion-playwright.log
+
+      - name: Generar informe PDF de evidencias
+        if: always()
+        run: |
+          python -m pip install --quiet reportlab
+          python scripts/generate_ci_report.py --cucumber-results results/cucumber.json 2>&1 | tee ci-evidence/07-generacion-informe.log
+
+      - name: Publicar informe, resultados y evidencias
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: evidencia-bdd-${{ github.run_number }}
+          name: semana-7-bdd-pom-evidencias-${{ github.run_number }}
           path: |
-            results/cucumber.html
-            results/cucumber.json
+            ci-evidence/
+            results/
+            playwright-report/
+            test-results/
+            tests/
+            features/
+            playwright/pages/
+            grupos/**/tests/
+            grupos/**/features/
+            grupos/**/playwright/pages/
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Marcar fallo de validaciones
+        if: always() && (steps.dryrun.outcome == 'failure' || steps.bdd.outcome == 'failure' || steps.bdd-summary.outcome == 'failure' || steps.playwright.outcome == 'failure')
+        run: |
+          echo "Dry-run BDD: ${{ steps.dryrun.outcome }}"
+          echo "BDD: ${{ steps.bdd.outcome }}"
+          echo "Resumen BDD: ${{ steps.bdd-summary.outcome }}"
+          echo "Playwright: ${{ steps.playwright.outcome }}"
+          exit 1

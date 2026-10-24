@@ -6,7 +6,8 @@ dotenv.config();
 export default defineConfig({
   testDir: '.',
   testMatch: ['tests/e2e/**/*.spec.ts', 'grupos/**/tests/e2e/**/*.spec.ts'],
-  testIgnore: ['.claude/**', 'node_modules/**'],
+  // Evita que Playwright ejecute copias de trabajo auxiliares presentes en el repositorio local.
+  testIgnore: ['**/.claude/**', '**/node_modules/**'],
   timeout: 30_000,
   retries: 1,
   reporter: [['html', { open: 'never' }], ['list']],
