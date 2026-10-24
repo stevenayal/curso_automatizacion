@@ -1,0 +1,78 @@
+name: BDD + POM (sandbox)
+
+# Semana 7: ejecutar en CI la suite BDD conocida (Cucumber + Playwright + POM),
+# conservar el informe aunque una prueba falle y dejar trazabilidad de la version probada.
+# CI ejecuta codigo aprobado: sin llamadas a modelos de IA.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Filtro de tags de Cucumber"
+        required: false
+        default: "not @wip"
+  pull_request:
+    paths:
+      - 'features/**'
+      - 'grupos/**/features/**'
+      - 'tests/bdd/**'
+      - 'playwright/pages/**'
+      - 'scripts/check-cucumber-results.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/bdd-pom-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bdd-pom-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bdd:
+    name: Cucumber + Playwright + POM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BDD_CONFIG: tests/bdd/sandbox-pom/cucumber.js
+      BASE_URL: ${{ vars.BASE_URL_SANDBOX || 'https://aiquaa-sandbox-web.vercel.app' }}
+      CUCUMBER_TAGS: ${{ inputs.tags || 'not @wip' }}
+      HEADED: '0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias (package-lock.json)
+        run: npm ci
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Revision sin ejecutar (dry-run)
+        run: npx cucumber-js --config "$BDD_CONFIG" --profile dryrun
+
+      # El perfil sandbox ya escribe progress + results/cucumber.html + results/cucumber.json.
+      - name: Ejecutar suite BDD
+        run: npx cucumber-js --config "$BDD_CONFIG" --profile sandbox
+
+      - name: Resumen y control de cero escenarios
+        if: always()
+        run: node scripts/check-cucumber-results.mjs results/cucumber.json
+
+      - name: Guardar informes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencia-bdd-${{ github.run_number }}
+          path: |
+            results/cucumber.html
+            results/cucumber.json
+          if-no-files-found: warn
+          retention-days: 14

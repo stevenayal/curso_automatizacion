@@ -6,13 +6,8 @@ export class CuentasPage {
 
   // 1. INICIAR SESION
   async ingresarConCorreoAutorizado(): Promise<void> {
-    const email = process.env.TEST_ADMIN_EMAIL;
-
-    if (!email) {
-      throw new Error(
-        "Falta configurar TEST_ADMIN_EMAIL"
-      );
-    }
+    // Mismo usuario de prueba por defecto que usa el Grupo 03 (.env.example).
+    const email = process.env.TEST_ADMIN_EMAIL || "admin@aiquaa.com";
 
     await this.page.goto(
       "https://aiquaa-sandbox-web.vercel.app/auth/login",

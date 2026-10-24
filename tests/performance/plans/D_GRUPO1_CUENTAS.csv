@@ -1,0 +1,4 @@
+cuentaId,usuarioId,tipoCuenta,moneda,saldo
+1,1,ahorro,PYG,1000000
+2,2,corriente,PYG,2500000
+3,3,ahorro,USD,500

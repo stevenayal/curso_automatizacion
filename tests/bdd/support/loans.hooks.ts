@@ -1,14 +1,17 @@
-import { After, AfterAll, Before, BeforeAll, Status, setDefaultTimeout } from '@cucumber/cucumber';
+import { After, AfterAll, Before, BeforeAll, setDefaultTimeout, Status } from '@cucumber/cucumber';
 import { chromium, type Browser } from '@playwright/test';
 import { LoansPage } from '../../../playwright/pages/LoansPage';
 import { LoansWorld } from './loans.world';
 import { CuentasPage } from "../../../grupos/grupo-01-cuentas-bancarias/playwright/pages/CuentasPage";
-setDefaultTimeout(30 * 1000);
+
+// El default de Cucumber (5 s) no alcanza para el login contra la sandbox desplegada.
+setDefaultTimeout(30_000);
 
 let browser: Browser;
 
 BeforeAll(async () => {
-  browser = await chromium.launch();
+  // HEADED=1 abre la ventana en local; en CI (HEADED=0 o sin definir) corre sin ventana.
+  browser = await chromium.launch({ headless: process.env.HEADED !== '1' });
 });
 
 Before({ tags: '@grupo-03 and @web and not @wip' }, async function (this: LoansWorld) {
