@@ -322,17 +322,19 @@ def add_log_evidence(story: list, evidence_dir: Path, styles):
         lines = text.splitlines()
         total = len(lines)
 
-        head = lines[:MAX_LOG_HEAD] if total > MAX_LOG_HEAD else []
-        tail_start = max(MAX_LOG_HEAD, total - MAX_LOG_TAIL)
-        tail = lines[tail_start:]
-
-        parts = []
-        if head:
-            parts.append("\n".join(head))
-        if tail_start > MAX_LOG_HEAD:
-            parts.append(f"\n... ({total - MAX_LOG_HEAD - MAX_LOG_TAIL} lineas omitidas) ...\n")
-        parts.append("\n".join(tail) if tail else "Sin salida registrada.")
-        excerpt = "\n".join(parts)
+        if total == 0:
+            excerpt = "Sin salida registrada."
+        elif total <= MAX_LOG_HEAD + MAX_LOG_TAIL:
+            excerpt = "\n".join(lines)
+        else:
+            head = lines[:MAX_LOG_HEAD]
+            tail = lines[total - MAX_LOG_TAIL:]
+            omitted = total - MAX_LOG_HEAD - MAX_LOG_TAIL
+            excerpt = (
+                "\n".join(head)
+                + f"\n\n... ({omitted} lineas omitidas) ...\n\n"
+                + "\n".join(tail)
+            )
 
         story.append(paragraph(log.stem.replace("-", " ").title(), styles["Heading2"]))
 
