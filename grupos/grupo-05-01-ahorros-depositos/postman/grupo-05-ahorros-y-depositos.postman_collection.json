@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "92f8bdfe-a117-4d5b-9b6e-91ca506b73cd",
-    "name": "Grupo 05 - Ahorros y Depositos - 5 escenarios",
+    "name": "Grupo 05-01 - Ahorros y Depositos - 9 escenarios",
     "description": "Colección unificada: tres escenarios de depósitos, cancelación anticipada y consulta de plan de ahorro por ID. Configurar apiKey e IDs válidos antes de ejecutar. ATENCIÓN: el escenario de cancelación ejecuta una operación real y espera éxito (200/cancelado); NO corresponde al escenario BDD negativo que exige rechazar la cancelación. Ejecutarlo solo con un depósito de prueba descartable, porque cambia su estado y puede impedir repetir las pruebas del depósito vigente.\n\nSEMANA 3 - Patron SQL REST dinamico: los ids de los escenarios se obtienen de la BD via POST /api/v2/sql/select; el escenario 4 cancela un deposito descartable que crea en su pre-request; se agrego la carpeta 'E2E - Flujos con validacion SQL'. Correr la coleccion completa (el helper utils se declara en el pre-request de la coleccion).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
