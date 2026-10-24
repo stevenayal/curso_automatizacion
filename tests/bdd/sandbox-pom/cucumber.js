@@ -21,7 +21,12 @@ const common = {
 module.exports = {
   sandbox: {
     ...common,
-    format: ['progress', 'html:results/cucumber.html', 'json:results/cucumber.json'],
+    format: [
+      'progress',
+      'html:results/cucumber.html',
+      'json:results/cucumber.json',
+      'allure-cucumberjs/reporter',
+    ],
   },
   dryrun: {
     ...common,

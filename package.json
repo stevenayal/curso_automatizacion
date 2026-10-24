@@ -20,6 +20,9 @@
   "devDependencies": {
     "@cucumber/cucumber": "^11.0.1",
     "@playwright/test": "^1.54.2",
+    "allure-commandline": "^2.34.0",
+    "allure-cucumberjs": "^3.3.0",
+    "allure-playwright": "^3.3.0",
     "dotenv": "^17.2.3",
     "newman": "^6.2.1",
     "ts-node": "^10.9.2",

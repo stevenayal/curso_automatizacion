@@ -59,7 +59,7 @@ jobs:
           python-version: "3.12"
 
       - name: Preparar directorios de evidencia
-        run: mkdir -p ci-evidence results
+        run: mkdir -p ci-evidence results allure-results
 
       - name: Instalar dependencias
         run: npm ci 2>&1 | tee ci-evidence/01-instalacion-dependencias.log
@@ -89,11 +89,22 @@ jobs:
         continue-on-error: true
         run: npm run test:e2e 2>&1 | tee ci-evidence/06-ejecucion-playwright.log
 
-      - name: Generar informe PDF de evidencias
+      - name: Generar informe Allure HTML
         if: always()
         run: |
+          npx allure generate allure-results --clean -o allure-report \
+            2>&1 | tee ci-evidence/07a-allure-generate.log \
+            || echo "allure-results vacío o sin datos — se omite HTML"
+
+      - name: Exportar informe Allure a PDF (Playwright)
+        if: always()
+        run: |
+          node scripts/export_allure_pdf.mjs \
+            2>&1 | tee ci-evidence/07b-allure-pdf.log \
+            || echo "PDF Allure no generado — activando fallback reportlab"
           python -m pip install --quiet reportlab
-          python scripts/generate_ci_report.py --cucumber-results results/cucumber.json 2>&1 | tee ci-evidence/07-generacion-informe.log
+          python scripts/generate_ci_report.py --cucumber-results results/cucumber.json \
+            2>&1 | tee ci-evidence/07c-informe-fallback.log
 
       - name: Publicar informe, resultados y evidencias
         if: always()
@@ -103,6 +114,8 @@ jobs:
           path: |
             ci-evidence/
             results/
+            allure-report/
+            allure-results/
             playwright-report/
             test-results/
             tests/
