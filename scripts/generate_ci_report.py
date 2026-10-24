@@ -325,6 +325,7 @@ def add_log_evidence(story: list, evidence_dir: Path, styles):
         if total == 0:
             excerpt = "Sin salida registrada."
         elif total <= MAX_LOG_HEAD + MAX_LOG_TAIL:
+            # File short enough to show in full
             excerpt = "\n".join(lines)
         else:
             head = lines[:MAX_LOG_HEAD]
