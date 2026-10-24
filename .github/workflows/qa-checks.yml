@@ -40,7 +40,7 @@ jobs:
 
       - name: Verificar que Cucumber ejecuto escenarios
         if: always()
-        run: npm run test:bdd:check
+        run: npm run test:bdd:check:default
 
       - name: Subir reporte de Cucumber
         uses: actions/upload-artifact@v4

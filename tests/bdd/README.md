@@ -38,9 +38,9 @@ npx cucumber-js -p wip
 ## Control de cobertura en CI
 
 `npm run test:bdd` escribe `newman/cucumber-report.json` y `newman/cucumber-report.html`.
-Después, `npm run test:bdd:check` ([`ci/check-cucumber-report.mjs`](../../ci/check-cucumber-report.mjs))
+Después, `npm run test:bdd:check:default` ([`scripts/check-cucumber-results.mjs`](../../scripts/check-cucumber-results.mjs))
 **falla si no se ejecutó ningún escenario** (por ejemplo, porque todo quedó `@wip`) y publica el
-conteo por feature en el resumen del job. Los dos reportes se suben como artefacto
+detalle por escenario en el resumen del job. Los dos reportes se suben como artefacto
 `cucumber-report` en cada ejecución del workflow *QA checks*.
 
 El smoke UI (`npm run smoke`) corre todos los tests de Playwright con `@smoke` en el título. Si

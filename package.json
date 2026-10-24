@@ -11,9 +11,12 @@
     "test:practica": "newman run \"postman/practica/Practica - Sandbox API v2.postman_collection.json\" -e postman/practica/practica-v2.postman_environment.json --env-var \"apiKey=$API_KEY\" --delay-request 2500",
     "test:api:grupo-03": "newman run \"grupos/grupo-03-prestamos/postman/Grupo 03 - Prestamos.postman_collection.json\" -e \"grupos/grupo-03-prestamos/postman/grupo-03-prestamos.postman_environment.json\" --reporters cli,json --reporter-json-export \"newman/grupo-03/newman-results.json\"",
     "test:bdd": "cucumber-js",
-    "test:bdd:check": "node ci/check-cucumber-report.mjs newman/cucumber-report.json",
+    "test:bdd:sandbox": "cucumber-js --config tests/bdd/sandbox-pom/cucumber.js --profile sandbox",
+    "test:bdd:dryrun": "cucumber-js --config tests/bdd/sandbox-pom/cucumber.js --profile dryrun",
+    "test:bdd:check": "node scripts/check-cucumber-results.mjs results/cucumber.json",
+    "test:bdd:check:default": "node scripts/check-cucumber-results.mjs newman/cucumber-report.json",
     "smoke": "playwright test --grep @smoke",
-    "verify": "npm run test:bdd && npm run test:bdd:check && npm run test:e2e"
+    "verify": "npm run test:bdd && npm run test:bdd:check:default && npm run test:e2e"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^11.0.1",
