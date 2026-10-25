@@ -46,3 +46,24 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 - [x] Evidencias de Newman en `evidence/semana-03/`: `newman-run.txt` y `newman-junit.xml`. El reporte `newman-results.json`, si se genera, queda excluido del versionado.
 - [ ] CI/CD verde
 - [ ] PR de `grupo_5` hacia `main` usando la plantilla del repo
+
+## Semana 4 — GitHub Actions y Newman
+
+El workflow [grupo-05-01-ahorros-depositos.yml](../../.github/workflows/grupo-05-01-ahorros-depositos.yml)
+ejecuta los 9 escenarios de la colección existente, genera JSON y JUnit, convierte
+los resultados a PDF con Python y publica los reportes como artefactos por 14 días.
+Se activa con cambios del grupo en un PR, con push a `grupo_5`/`main` o manualmente.
+
+Para ejecutar desde la raíz del repositorio:
+
+```powershell
+npm ci
+# Crear .env a partir de .env.example y completar API_KEY con la clave del curso 2.
+npm run test:api:grupo-05-01
+```
+
+Los reportes locales quedan en `newman/grupo-05-01/`, excluido de Git.
+Configuración de GitHub, generación local del PDF y pasos de entrega:
+[guía de ejecución de semana 4](docs/semana-04-ci.md).
+La ejecución real de Actions y el PR deben enlazarse al completar la entrega;
+el checklist de CI/CD queda pendiente hasta verificar una corrida verde.
