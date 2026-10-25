@@ -63,7 +63,5 @@ npm run test:api:grupo-05-01
 ```
 
 Los reportes locales quedan en `newman/grupo-05-01/`, excluido de Git.
-Configuración de GitHub, generación local del PDF y pasos de entrega:
-[guía de ejecución de semana 4](docs/semana-04-ci.md).
 La ejecución real de Actions y el PR deben enlazarse al completar la entrega;
 el checklist de CI/CD queda pendiente hasta verificar una corrida verde.
