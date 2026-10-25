@@ -1,0 +1,100 @@
+name: Grupo 05-01 - Ahorros y Depositos API
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'grupos/grupo-05-01-ahorros-depositos/**'
+      - '.github/workflows/grupo-05-01-ahorros-depositos.yml'
+      - 'scripts/run-grupo-05-01-api.cjs'
+      - 'skills/postman-newman-skill/reporter/**'
+      - 'package.json'
+      - 'package-lock.json'
+  push:
+    branches: [main, grupo_5]
+    paths:
+      - 'grupos/grupo-05-01-ahorros-depositos/**'
+      - '.github/workflows/grupo-05-01-ahorros-depositos.yml'
+      - 'scripts/run-grupo-05-01-api.cjs'
+      - 'skills/postman-newman-skill/reporter/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+# La coleccion modifica datos compartidos: evitar dos corridas simultaneas.
+concurrency:
+  group: grupo-05-01-ahorros-depositos-api
+  cancel-in-progress: false
+
+jobs:
+  newman:
+    name: Newman API y reporte Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: api_key
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: skills/postman-newman-skill/reporter/requirements.txt
+
+      - name: Instalar dependencias
+        run: |
+          npm ci
+          python -m pip install -r skills/postman-newman-skill/reporter/requirements.txt
+
+      - name: Ejecutar coleccion de ahorros y depositos
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          API_URL: ${{ vars.GRUPO_05_01_BASE_URL || 'https://aiquaa-sandbox-api.vercel.app' }}
+        run: |
+          mkdir -p newman/grupo-05-01
+          set -o pipefail
+          npm run test:api:grupo-05-01 2>&1 | tee newman/grupo-05-01/newman-run.txt
+
+      - name: Generar informe PDF
+        if: always()
+        run: |
+          if [[ -f newman/grupo-05-01/newman-results.json ]]; then
+            python skills/postman-newman-skill/reporter/newman_report.py \
+              --results newman/grupo-05-01/newman-results.json \
+              --output newman/grupo-05-01/INFORME_GRUPO_05_01_AHORROS_DEPOSITOS.pdf \
+              --banner skills/postman-newman-skill/reporter/assets/banner_portada.png \
+              --logo-aiquaa skills/postman-newman-skill/reporter/assets/logo_aiquaa_circle.png \
+              --logo-postman skills/postman-newman-skill/reporter/assets/logo_postman_clean.png \
+              --api-version "v2" \
+              --repo-url "${{ github.server_url }}/${{ github.repository }}" \
+              --author "Grupo 05-01 - Marcos Flores, Jackelin Pena y Ada Melgarejo" \
+              --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          else
+            echo "No se genero JSON de Newman. Revisar el paso de ejecucion y API_KEY."
+          fi
+
+      - name: Publicar reportes Newman
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grupo-05-01-ahorros-depositos-reportes
+          path: newman/grupo-05-01/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enlace de la ejecucion
+        if: always()
+        run: |
+          echo '### Grupo 05-01 - Semana 4' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Artefacto: grupo-05-01-ahorros-depositos-reportes (retencion: 14 dias).' >> "$GITHUB_STEP_SUMMARY"

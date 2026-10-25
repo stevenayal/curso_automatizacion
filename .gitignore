@@ -12,6 +12,9 @@ blob-report/
 # Resultados de Newman
 newman/
 
+# Material de consulta desechable del grupo 05-01
+grupos/grupo-05-01-ahorros-depositos/tarea_semana_4/
+
 # Logs
 *.log
 npm-debug.log*
