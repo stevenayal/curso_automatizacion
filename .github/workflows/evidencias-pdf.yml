@@ -1,0 +1,132 @@
+name: Evidencias PDF (Semana 7)
+
+# Workflow dedicado a generar un PDF con capturas reales del sandbox
+# + resultados BDD. Usa playwright-python para capturar el app directamente.
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Tags de Cucumber (ej: not @wip)"
+        required: false
+        default: "not @wip"
+  push:
+    branches: [main, develop, "semana-*/**", "ci/**"]
+    paths:
+      - 'features/**'
+      - 'grupos/**/features/**'
+      - 'tests/bdd/**'
+      - 'scripts/evidencias_pdf.py'
+      - '.github/workflows/evidencias-pdf.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidencias-pdf-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidencias:
+    name: Capturas + BDD + PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE_URL:        ${{ vars.BASE_URL_SANDBOX || 'https://aiquaa-sandbox-web.vercel.app' }}
+      CUCUMBER_TAGS:   ${{ inputs.tags || 'not @wip' }}
+      BDD_CONFIG:      tests/bdd/sandbox-pom/cucumber.js
+      HEADED:          '0'
+      CI:              'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Preparar directorios
+        run: mkdir -p ci-evidence/screenshots results
+
+      - name: Instalar dependencias Node
+        run: npm ci
+
+      - name: Instalar Chromium de Playwright (Node)
+        run: npx playwright install --with-deps chromium
+
+      - name: Instalar dependencias Python
+        run: |
+          pip install --quiet reportlab playwright
+          playwright install chromium
+
+      # ── BDD ──────────────────────────────────────────────────────────────
+      - name: Dry-run BDD (verificar sin ejecutar)
+        id: dryrun
+        continue-on-error: true
+        run: |
+          npx cucumber-js \
+            --config "$BDD_CONFIG" \
+            --profile dryrun \
+            2>&1 | tail -20
+
+      - name: Ejecutar escenarios BDD con POM
+        id: bdd
+        continue-on-error: true
+        run: |
+          npx cucumber-js \
+            --config "$BDD_CONFIG" \
+            --profile sandbox \
+            2>&1 | tail -30
+
+      # ── Playwright specs ──────────────────────────────────────────────────
+      - name: Ejecutar pruebas Playwright (screenshot siempre)
+        id: playwright
+        if: always()
+        continue-on-error: true
+        run: |
+          npx playwright test \
+            --reporter=list \
+            2>&1 | tail -20
+        env:
+          PLAYWRIGHT_SCREENSHOT: on
+
+      # ── Generar PDF de evidencias ─────────────────────────────────────────
+      - name: Generar PDF con capturas del sandbox
+        if: always()
+        run: |
+          python scripts/evidencias_pdf.py \
+            --base-url      "$BASE_URL" \
+            --cucumber-results results/cucumber.json \
+            --screenshots-dir  ci-evidence/screenshots \
+            --test-results-dir test-results \
+            --output           ci-evidence/INFORME_EVIDENCIAS.pdf
+
+      # ── Publicar artefacto ────────────────────────────────────────────────
+      - name: Publicar evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencias-semana7-${{ github.run_number }}
+          path: |
+            ci-evidence/INFORME_EVIDENCIAS.pdf
+            ci-evidence/screenshots/
+            results/cucumber.json
+            results/cucumber.html
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Marcar fallo si BDD o Playwright fallaron
+        if: always() && (steps.bdd.outcome == 'failure' || steps.playwright.outcome == 'failure')
+        run: |
+          echo "BDD: ${{ steps.bdd.outcome }}"
+          echo "Playwright: ${{ steps.playwright.outcome }}"
+          exit 1
