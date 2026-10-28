@@ -46,3 +46,29 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 - [x] Evidencias de Newman en `evidence/semana-03/`: `newman-run.txt` y `newman-junit.xml`. El reporte `newman-results.json`, si se genera, queda excluido del versionado.
 - [ ] CI/CD verde
 - [ ] PR de `grupo_5` hacia `main` usando la plantilla del repo
+
+## JMeter — Depósitos
+
+El [plan JMX](../../tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx) usa el
+[CSV](../../tests/performance/plans/D_GRUPO_05_01_DEPOSITOS.csv) para crear un depósito,
+listar por usuario y estado, consultar el ID extraído de la creación y cancelarlo
+al finalizar. El CSV cubre los filtros `activo`, `vencido` y `cancelado`.
+
+Desde la raíz del repositorio, con JMeter 5.6+ en el `PATH` y Java 17 configurado:
+
+```powershell
+# Leer la clave local sin guardarla en el JMX ni en el CSV.
+$env:API_KEY = ((Get-Content .env | Where-Object { $_ -match '^API_KEY=' }) -replace '^API_KEY=', '').Trim()
+$resultados = "newman/grupo-05-01/jmeter/$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+New-Item -ItemType Directory -Force -Path $resultados | Out-Null
+jmeter -n -t tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx `
+  -l "$resultados/resultados.jtl" -j "$resultados/jmeter.log" `
+  -e -o "$resultados/dashboard"
+```
+
+Los valores predeterminados son 1 usuario, 3 iteraciones y 20 solicitudes/minuto
+compartidas: 12 solicitudes HTTP en total. Se pueden ajustar con `-Jthreads=...`,
+`-Jrampup=...`, `-Jloops=...` y `-Jthroughput=...`. El tiempo máximo de respuesta
+se configura con `-JmaxResponseMs=3000` como umbral de la práctica.
+Mantener el CSV junto al JMX o indicar `-JcsvFile` con su ruta absoluta.
+El JTL y el dashboard HTML quedan en `newman/`, excluido de Git.
