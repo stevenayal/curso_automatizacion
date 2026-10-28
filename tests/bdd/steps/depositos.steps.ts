@@ -25,6 +25,8 @@ interface EstadoG05 {
 
 export type G05World = LoansWorld & { g05: EstadoG05 };
 
+// Margen para los reintentos ante 429 del fixture (ver Retry-After en el fixture).
+const FIXTURE_TIMEOUT = { timeout: 120_000 };
 const adminEmail = process.env.TEST_ADMIN_EMAIL || 'admin@aiquaa.com';
 const MONTO_MINIMO_UI = 1_000_000;
 
@@ -44,36 +46,36 @@ async function constituirPorApi(world: G05World, monto: number, tasa = 10, plazo
 
 // ── Pantalla: escrituras sobre el cliente del fixture ───────────────────────
 
-Given('que el cliente tiene saldo suficiente', async function (this: G05World) {
+Given('que el cliente tiene saldo suficiente', FIXTURE_TIMEOUT, async function (this: G05World) {
   await cuentaConSaldo(this, 5_000_000);
   await this.depositos.signInAsAdmin(adminEmail, { allowWrites: true });
   await this.depositos.openNewDepositFormFor(this.g05.fixture.usuarioId, this.g05.cuentaId!);
 });
 
-When('constituye un depósito por el importe mínimo permitido', async function (this: G05World) {
+When('constituye un depósito por el importe mínimo permitido', FIXTURE_TIMEOUT, async function (this: G05World) {
   this.g05.monto = MONTO_MINIMO_UI;
   await this.depositos.selectTerm(30);
   await this.depositos.enterAmount(MONTO_MINIMO_UI);
   await this.depositos.submitForm();
 });
 
-Given('que el cliente tiene una cuenta de ahorro activa', async function (this: G05World) {
+Given('que el cliente tiene una cuenta de ahorro activa', FIXTURE_TIMEOUT, async function (this: G05World) {
   await cuentaConSaldo(this, 2_500_000);
   await this.depositos.signInAsAdmin(adminEmail, { allowWrites: true });
 });
 
-Given('el saldo disponible es igual al importe del depósito', async function (this: G05World) {
+Given('el saldo disponible es igual al importe del depósito', FIXTURE_TIMEOUT, async function (this: G05World) {
   this.g05.monto = Number(this.g05.saldoPrevio);
   await this.depositos.openNewDepositFormFor(this.g05.fixture.usuarioId, this.g05.cuentaId!);
 });
 
-When('constituye el depósito a plazo', async function (this: G05World) {
+When('constituye el depósito a plazo', FIXTURE_TIMEOUT, async function (this: G05World) {
   await this.depositos.selectTerm(30);
   await this.depositos.enterAmount(this.g05.monto!);
   await this.depositos.submitForm();
 });
 
-Then('el sistema registra el depósito correctamente', async function (this: G05World) {
+Then('el sistema registra el depósito correctamente', FIXTURE_TIMEOUT, async function (this: G05World) {
   const id = await this.depositos.expectDepositCreated();
   this.g05.fixture.registrarDeposito(id);
   const [deposito] = await this.g05.fixture.depositosDelCliente();
@@ -83,26 +85,26 @@ Then('el sistema registra el depósito correctamente', async function (this: G05
   expect(Number(await this.g05.fixture.saldo(this.g05.cuentaId!))).toBe(Number(this.g05.saldoPrevio) - this.g05.monto!);
 });
 
-Then('el saldo disponible de la cuenta queda en cero', async function (this: G05World) {
+Then('el saldo disponible de la cuenta queda en cero', FIXTURE_TIMEOUT, async function (this: G05World) {
   expect(await this.g05.fixture.saldo(this.g05.cuentaId!)).toBe('0.00');
 });
 
-Given('que el cliente tiene un depósito a plazo vigente propio', async function (this: G05World) {
+Given('que el cliente tiene un depósito a plazo vigente propio', FIXTURE_TIMEOUT, async function (this: G05World) {
   await cuentaConSaldo(this, 3_000_000);
   await constituirPorApi(this, 2_000_000, 10, 90);
   expect(ultima(this).status).toBe(201);
   await this.depositos.signInAsAdmin(adminEmail, { allowWrites: true });
 });
 
-When('cancela el depósito antes de la fecha de vencimiento', async function (this: G05World) {
+When('cancela el depósito antes de la fecha de vencimiento', FIXTURE_TIMEOUT, async function (this: G05World) {
   await this.depositos.cancelDepositEarly(this.g05.deposito!.id);
 });
 
-Then('el sistema procesa la cancelación anticipada', async function (this: G05World) {
+Then('el sistema procesa la cancelación anticipada', FIXTURE_TIMEOUT, async function (this: G05World) {
   await this.depositos.expectDepositStatus('cancelado');
 });
 
-Then('acredita el capital más los intereses prorrateados en la cuenta del cliente', async function (this: G05World) {
+Then('acredita el capital más los intereses prorrateados en la cuenta del cliente', FIXTURE_TIMEOUT, async function (this: G05World) {
   // Constituido hoy: 0 días transcurridos, interés prorrateado 0; vuelve exactamente el capital.
   const res = await this.g05.fixture.request('GET', `/api/v2/depositos/${this.g05.deposito!.id}`);
   expect(res.body?.data?.interes_generado).toBe('0.00');
@@ -111,31 +113,31 @@ Then('acredita el capital más los intereses prorrateados en la cuenta del clien
 
 // ── API: precondiciones ─────────────────────────────────────────────────────
 
-Given('que el cliente usa la API del Curso 2', async function (this: G05World) {
+Given('que el cliente usa la API del Curso 2', FIXTURE_TIMEOUT, async function (this: G05World) {
   // El fixture ya creó un cliente con la API_KEY: la key es válida para el Curso 2.
   expect(this.g05.fixture.usuarioId).toBeGreaterThan(0);
 });
 
-Given('una cuenta activa con saldo {int}', async function (this: G05World, saldo: number) {
+Given('una cuenta activa con saldo {int}', FIXTURE_TIMEOUT, async function (this: G05World, saldo: number) {
   await cuentaConSaldo(this, saldo);
 });
 
-Given('una cuenta activa con saldo suficiente', async function (this: G05World) {
+Given('una cuenta activa con saldo suficiente', FIXTURE_TIMEOUT, async function (this: G05World) {
   await cuentaConSaldo(this, 5_000_000);
 });
 
-Given('una cuenta activa con saldo menor al importe del depósito', async function (this: G05World) {
+Given('una cuenta activa con saldo menor al importe del depósito', FIXTURE_TIMEOUT, async function (this: G05World) {
   await cuentaConSaldo(this, 100_000);
 });
 
-Given('un depósito existente', async function (this: G05World) {
+Given('un depósito existente', FIXTURE_TIMEOUT, async function (this: G05World) {
   await cuentaConSaldo(this, 2_000_000);
   await constituirPorApi(this, 1_000_000);
   expect(ultima(this).status).toBe(201);
   this.g05.respuestas = [];
 });
 
-Given('un depósito constituido hoy por {int}', async function (this: G05World, monto: number) {
+Given('un depósito constituido hoy por {int}', FIXTURE_TIMEOUT, async function (this: G05World, monto: number) {
   await cuentaConSaldo(this, monto + 1_000_000);
   await constituirPorApi(this, monto, 10, 90);
   expect(ultima(this).status).toBe(201);
@@ -143,7 +145,7 @@ Given('un depósito constituido hoy por {int}', async function (this: G05World, 
 });
 
 // Solo lectura sobre el seed: un depósito vencido no se puede crear por API (la fecha la fija el servidor).
-Given('un depósito en estado {string}', async function (this: G05World, estado: string) {
+Given('un depósito en estado {string}', FIXTURE_TIMEOUT, async function (this: G05World, estado: string) {
   const res = await this.g05.fixture.request('GET', `/api/v2/depositos?estado=${estado}`);
   const [deposito] = res.body?.data ?? [];
   expect(deposito, `el sandbox no tiene depósitos en estado ${estado}`).toBeTruthy();
@@ -153,7 +155,7 @@ Given('un depósito en estado {string}', async function (this: G05World, estado:
 });
 
 Given(
-  /^el depósito sembrado (\d+) de (\d+) al ([\d,]+) % por (\d+) días$/,
+  /^el depósito sembrado (\d+) de (\d+) al ([\d,]+) % por (\d+) días$/, FIXTURE_TIMEOUT,
   async function (this: G05World, id: string, monto: string, tasa: string, plazo: string) {
     const res = await this.g05.fixture.request('GET', `/api/v2/depositos/${id}`);
     expect(res.status).toBe(200);
@@ -168,45 +170,45 @@ Given(
 // ── API: acciones ───────────────────────────────────────────────────────────
 
 When(
-  'constituye un depósito de {int} al {int} % de tasa anual por {int} días',
+  'constituye un depósito de {int} al {int} % de tasa anual por {int} días', FIXTURE_TIMEOUT,
   async function (this: G05World, monto: number, tasa: number, plazo: number) {
     await constituirPorApi(this, monto, tasa, plazo);
   },
 );
 
-When('constituye un depósito por {int} días', async function (this: G05World, plazo: number) {
+When('constituye un depósito por {int} días', FIXTURE_TIMEOUT, async function (this: G05World, plazo: number) {
   await constituirPorApi(this, 1_000_000, 10, plazo);
 });
 
-When('constituye un depósito por un monto positivo inferior a 1000000', async function (this: G05World) {
+When('constituye un depósito por un monto positivo inferior a 1000000', FIXTURE_TIMEOUT, async function (this: G05World) {
   await constituirPorApi(this, 500_000);
 });
 
-When('intenta constituir por API un depósito a plazo', async function (this: G05World) {
+When('intenta constituir por API un depósito a plazo', FIXTURE_TIMEOUT, async function (this: G05World) {
   await constituirPorApi(this, 1_000_000);
 });
 
-When('consulta por API un depósito a plazo que no existe', async function (this: G05World) {
+When('consulta por API un depósito a plazo que no existe', FIXTURE_TIMEOUT, async function (this: G05World) {
   this.g05.respuestas.push(await this.g05.fixture.request('GET', `/api/v2/depositos/${DEPOSITO_INEXISTENTE_ID}`));
 });
 
-When('consulta por API el detalle de ese depósito', async function (this: G05World) {
+When('consulta por API el detalle de ese depósito', FIXTURE_TIMEOUT, async function (this: G05World) {
   const res = await this.g05.fixture.request('GET', `/api/v2/depositos/${this.g05.deposito!.id}`);
   this.g05.respuestas.push(res);
   this.g05.deposito = res.body?.data;
 });
 
-When('envía PUT o DELETE sobre ese depósito', async function (this: G05World) {
+When('envía PUT o DELETE sobre ese depósito', FIXTURE_TIMEOUT, async function (this: G05World) {
   const ruta = `/api/v2/depositos/${this.g05.deposito!.id}`;
   this.g05.respuestas.push(await this.g05.fixture.request('PUT', ruta, { monto: 1 }));
   this.g05.respuestas.push(await this.g05.fixture.request('DELETE', ruta));
 });
 
-When('lista los depósitos con estado {string}', async function (this: G05World, estado: string) {
+When('lista los depósitos con estado {string}', FIXTURE_TIMEOUT, async function (this: G05World, estado: string) {
   this.g05.respuestas.push(await this.g05.fixture.request('GET', `/api/v2/depositos?estado=${estado}`));
 });
 
-When('cancela el depósito', async function (this: G05World) {
+When('cancela el depósito', FIXTURE_TIMEOUT, async function (this: G05World) {
   const res = await this.g05.fixture.request('POST', `/api/v2/depositos/${this.g05.deposito!.id}/cancelar`);
   this.g05.respuestas.push(res);
   if (res.status === 200) this.g05.deposito = res.body!.data;
@@ -215,7 +217,7 @@ When('cancela el depósito', async function (this: G05World) {
 // ── API: verificaciones ─────────────────────────────────────────────────────
 
 // "la API responde 201", "la API responde 400 VALIDATION_ERROR", "la API responde 405"...
-Then(/^la API responde (\d{3})(?: ([A-Z_]+))?$/, async function (this: G05World, status: string, codigo?: string) {
+Then(/^la API responde (\d{3})(?: ([A-Z_]+))?$/, FIXTURE_TIMEOUT, async function (this: G05World, status: string, codigo?: string) {
   expect(this.g05.respuestas.length).toBeGreaterThan(0);
   for (const res of this.g05.respuestas) {
     expect(res.status, JSON.stringify(res.body)).toBe(Number(status));
@@ -223,14 +225,14 @@ Then(/^la API responde (\d{3})(?: ([A-Z_]+))?$/, async function (this: G05World,
   }
 });
 
-Then('la API responde {int} con estado {string}', async function (this: G05World, status: number, estado: string) {
+Then('la API responde {int} con estado {string}', FIXTURE_TIMEOUT, async function (this: G05World, status: number, estado: string) {
   const res = ultima(this);
   expect(res.status, JSON.stringify(res.body)).toBe(status);
   expect(res.body?.data?.estado).toBe(estado);
 });
 
 Then(
-  'la API responde {int} {word} con el mensaje {string}',
+  'la API responde {int} {word} con el mensaje {string}', FIXTURE_TIMEOUT,
   async function (this: G05World, status: number, codigo: string, mensaje: string) {
     const res = ultima(this);
     expect(res.status).toBe(status);
@@ -238,34 +240,34 @@ Then(
   },
 );
 
-Then('interes_proyectado es {string}', async function (this: G05World, interes: string) {
+Then('interes_proyectado es {string}', FIXTURE_TIMEOUT, async function (this: G05World, interes: string) {
   expect(this.g05.deposito?.interes_proyectado).toBe(interes);
 });
 
-Then('dias_restantes es {int}', async function (this: G05World, dias: number) {
+Then('dias_restantes es {int}', FIXTURE_TIMEOUT, async function (this: G05World, dias: number) {
   expect(this.g05.deposito?.dias_restantes).toBe(dias);
 });
 
-Then('dias_transcurridos es {int}', async function (this: G05World, dias: number) {
+Then('dias_transcurridos es {int}', FIXTURE_TIMEOUT, async function (this: G05World, dias: number) {
   expect(Number((this.g05.deposito as Deposito & { dias_transcurridos: number }).dias_transcurridos)).toBe(dias);
 });
 
-Then('interes_generado es {string}', async function (this: G05World, interes: string) {
+Then('interes_generado es {string}', FIXTURE_TIMEOUT, async function (this: G05World, interes: string) {
   expect(this.g05.deposito?.interes_generado).toBe(interes);
 });
 
-Then('el saldo de la cuenta es {string}', async function (this: G05World, saldo: string) {
+Then('el saldo de la cuenta es {string}', FIXTURE_TIMEOUT, async function (this: G05World, saldo: string) {
   expect(await this.g05.fixture.saldo(this.g05.cuentaId!)).toBe(saldo);
 });
 
-Then('el saldo de la cuenta no cambia', async function (this: G05World) {
+Then('el saldo de la cuenta no cambia', FIXTURE_TIMEOUT, async function (this: G05World) {
   expect(await this.g05.fixture.saldo(this.g05.cuentaId!)).toBe(this.g05.saldoPrevio);
 });
 
-Then('el saldo de la cuenta vuelve al valor previo a la constitución', async function (this: G05World) {
+Then('el saldo de la cuenta vuelve al valor previo a la constitución', FIXTURE_TIMEOUT, async function (this: G05World) {
   expect(await this.g05.fixture.saldo(this.g05.cuentaId!)).toBe(this.g05.saldoPrevio);
 });
 
-Then('la cuenta no vuelve a acreditarse', async function (this: G05World) {
+Then('la cuenta no vuelve a acreditarse', FIXTURE_TIMEOUT, async function (this: G05World) {
   expect(await this.g05.fixture.saldo(this.g05.cuentaCompartidaId!)).toBe(this.g05.saldoPrevio);
 });
