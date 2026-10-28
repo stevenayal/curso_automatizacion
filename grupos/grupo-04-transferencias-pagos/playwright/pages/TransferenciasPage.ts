@@ -20,17 +20,49 @@ export class TransferenciasPage extends BasePage {
   private readonly destino = this.page.getByTestId('v2-transferencias-field-cuentaDestinoId');
   private readonly monto = this.page.getByTestId('v2-transferencias-field-monto');
   private readonly continuar = this.page.getByTestId('v2-transferencias-step-next');
+  private readonly beneficiario = this.page.getByTestId('v2-transferencias-field-beneficiarioId');
+  private readonly confirmarBoton = this.page.getByTestId('v2-transferencias-submit');
 
   async abrirNueva(): Promise<void> {
     await this.navigate('/v2/transferencias/new');
     await expect(this.page.getByRole('heading', { name: 'Nueva transferencia' })).toBeVisible();
-    await expect(this.cliente.locator('option[value]:not([value=""])').first()).toBeAttached();
+    // Los clientes llegan de la API del sandbox, que a veces tarda más que el timeout por defecto.
+    await expect(this.cliente.locator('option[value]:not([value=""])').first()).toBeAttached({ timeout: 15_000 });
+  }
+
+  /**
+   * Abre el wizard ya posicionado en un cliente (`?usuarioId=`). Es la entrada
+   * para clientes del fixture, que pueden no figurar entre los primeros 100 del
+   * selector.
+   */
+  async abrirNuevaPara(usuarioId: number, tipo: 'propia' | 'beneficiario' = 'propia'): Promise<void> {
+    await this.navigate(`/v2/transferencias/new?usuarioId=${usuarioId}&tipo=${tipo}`);
+    await expect(this.page.getByRole('heading', { name: 'Nueva transferencia' })).toBeVisible();
+    await expect(this.origen.locator('option[data-saldo]').first()).toBeAttached({ timeout: 15_000 });
+  }
+
+  async elegirOrigen(id: number | string): Promise<void> {
+    await this.origen.selectOption(String(id));
+  }
+
+  async elegirBeneficiario(id: number | string): Promise<void> {
+    await expect(this.beneficiario.locator(`option[value="${id}"]`)).toBeAttached({ timeout: 15_000 });
+    await this.beneficiario.selectOption(String(id));
+  }
+
+  /** Último paso del wizard: envía la transferencia a la API. */
+  async confirmar(): Promise<void> {
+    await this.confirmarBoton.click();
+  }
+
+  comprobante(campo: 'monto' | 'origen' | 'destino' | 'estado'): Locator {
+    return this.page.getByTestId(`v2-transferencias-receipt-${campo}`);
   }
 
   async seleccionarCliente(usuarioId: number): Promise<void> {
     await this.cliente.selectOption(String(usuarioId));
     // Las cuentas llegan después del cambio de cliente: esperar a que haya opciones reales.
-    await expect(this.origen.locator('option[data-saldo]').first()).toBeAttached();
+    await expect(this.origen.locator('option[data-saldo]').first()).toBeAttached({ timeout: 15_000 });
     await expect(this.origen).toBeEnabled();
   }
 

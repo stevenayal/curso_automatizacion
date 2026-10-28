@@ -10,67 +10,35 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Pre-request de la coleccion: helper SQL reutilizable (sandbox curso 2).",
+          "// Pre-request de la coleccion: helpers reutilizables (sandbox curso 2).",
+          "// pm.variables resuelve primero el entorno: la apiKey llega por --env-var o el environment, nunca commiteada.",
           "if (typeof utils === \"undefined\") {",
           "  utils = {",
-          "    sql: function (sql, params) {",
-          "      return {",
-          "        url: pm.collectionVariables.get(\"baseUrl\") + \"/api/v2/sql/select\",",
-          "        method: \"POST\",",
-          "        header: { \"Content-Type\": \"application/json\", \"x-api-key\": pm.collectionVariables.get(\"apiKey\") },",
-          "        body: { mode: \"raw\", raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+          "    req: function (method, ruta, body) {",
+          "      var r = {",
+          "        url: pm.variables.get(\"baseUrl\") + ruta,",
+          "        method: method,",
+          "        header: { \"Content-Type\": \"application/json\", \"x-api-key\": pm.variables.get(\"apiKey\") }",
           "      };",
+          "      if (body !== undefined) { r.body = { mode: \"raw\", raw: JSON.stringify(body) }; }",
+          "      return r;",
+          "    },",
+          "    sql: function (sql, params) {",
+          "      return utils.req(\"POST\", \"/api/v2/sql/select\", { sql: sql, params: params || [] });",
+          "    },",
+          "    // Ejecuta pasos asincronos (cada uno recibe \"next\") uno detras de otro.",
+          "    secuencia: function (pasos, fin) {",
+          "      var i = 0;",
+          "      (function siguiente() {",
+          "        if (i >= pasos.length) { if (fin) { fin(); } return; }",
+          "        pasos[i++](siguiente);",
+          "      })();",
           "    }",
           "  };",
           "}",
           "",
-          "// Descubrimiento dinamico de cuentas: UNA sola consulta a la BD y la eleccion se",
-          "// hace en JS. Se cachea 60 s (una corrida completa dura ~7 s) para no gastar",
-          "// requests del rate limit (30/min) en cada item.",
-          "var TTL_MS = 60000;",
-          "var vigente = Number(pm.collectionVariables.get(\"descubiertoEn\") || 0) > Date.now() - TTL_MS;",
-          "if (!vigente) {",
-          "  pm.sendRequest(utils.sql(\"SELECT * FROM cuentas ORDER BY id\", []), function (err, res) {",
-          "    if (err || res.code !== 200) {",
-          "      throw new Error(\"No se pudieron consultar las cuentas para armar los datos de prueba: \" + (err || res.code));",
-          "    }",
-          "    var cuentas = res.json().data.map(function (c) {",
-          "      return { id: Number(c.id), usuario: Number(c.usuario_id), moneda: c.moneda, saldo: Number(c.saldo), estado: c.estado, activa: c.activa };",
-          "    });",
-          "    var activas = cuentas.filter(function (c) { return c.estado === \"activa\" && c.activa; });",
-          "",
-          "    // Cuentas propias: mismo usuario y misma moneda, origen con saldo (el de mayor saldo).",
-          "    var par = null;",
-          "    activas.slice().sort(function (a, b) { return b.saldo - a.saldo; }).some(function (o) {",
-          "      var d = activas.filter(function (x) { return x.id !== o.id && x.usuario === o.usuario && x.moneda === o.moneda; })[0];",
-          "      if (o.saldo >= 1 && d) { par = { o: o, d: d }; return true; }",
-          "    });",
-          "    // Saldo bajo: la cuenta activa con menos saldo (que no sea el origen propio) + otro destino activo.",
-          "    var pobre = activas.filter(function (c) { return !par || c.id !== par.o.id; })",
-          "                       .sort(function (a, b) { return a.saldo - b.saldo; })[0];",
-          "    var destinoDePobre = pobre && activas.filter(function (c) { return c.id !== pobre.id; })[0];",
-          "    var bloqueada = cuentas.filter(function (c) { return c.estado === \"bloqueada\"; })[0];",
-          "    var cerrada = cuentas.filter(function (c) { return c.estado === \"cerrada\"; })[0];",
-          "",
-          "    var faltan = [];",
-          "    if (!par) faltan.push(\"dos cuentas activas del mismo usuario/moneda con saldo\");",
-          "    if (!pobre || !destinoDePobre) faltan.push(\"una cuenta activa de saldo bajo + otro destino activo\");",
-          "    if (!bloqueada) faltan.push(\"una cuenta bloqueada\");",
-          "    if (!cerrada) faltan.push(\"una cuenta cerrada\");",
-          "    if (faltan.length) { throw new Error(\"El estado actual de la BD no permite armar los escenarios. Falta: \" + faltan.join(\"; \")); }",
-          "",
-          "    var maxId = Math.max.apply(null, cuentas.map(function (c) { return c.id; }));",
-          "    pm.collectionVariables.set(\"cuentaPropiaOrigenId\", par.o.id);",
-          "    pm.collectionVariables.set(\"cuentaPropiaDestinoId\", par.d.id);",
-          "    pm.collectionVariables.set(\"cuentaSaldoBajoId\", pobre.id);",
-          "    pm.collectionVariables.set(\"cuentaDestinoOtroId\", destinoDePobre.id);",
-          "    pm.collectionVariables.set(\"cuentaBloqueadaId\", bloqueada.id);",
-          "    pm.collectionVariables.set(\"cuentaCerradaId\", cerrada.id);",
-          "    pm.collectionVariables.set(\"cuentaInexistenteId\", maxId + 1000);",
-          "    pm.collectionVariables.set(\"descubiertoEn\", Date.now());",
-          "  });",
-          "}",
-          ""
+          "// Los datos de prueba los crea \"00 - Fixture\" (cliente aislado, issue #28) y los borra",
+          "// \"99 - Limpieza\": ningun escenario usa ni modifica cuentas compartidas del seed."
         ]
       }
     }
@@ -83,7 +51,7 @@
     },
     {
       "key": "apiKey",
-      "value": "sbx_c2_demo_334993ffb9d684b17c116367",
+      "value": "",
       "type": "string"
     },
     {
@@ -132,11 +100,6 @@
       "type": "string"
     },
     {
-      "key": "descubiertoEn",
-      "value": "",
-      "type": "string"
-    },
-    {
       "key": "monto",
       "value": "25000",
       "type": "string"
@@ -145,9 +108,114 @@
       "key": "concepto",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "fixtureUsuarioId",
+      "value": ""
+    },
+    {
+      "key": "fixtureSufijo",
+      "value": ""
     }
   ],
   "item": [
+    {
+      "name": "00 - Fixture: cliente aislado con sus cuentas",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"fixtureSufijo\", Date.now() + \"\" + Math.floor(Math.random() * 1000));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Cliente aislado creado\", function () { pm.response.to.have.status(201); });",
+              "var usuarioId = pm.response.json().data.id;",
+              "pm.collectionVariables.set(\"fixtureUsuarioId\", usuarioId);",
+              "pm.collectionVariables.set(\"cuentaInexistenteId\", 999999999);",
+              "",
+              "// Cada cuenta se abre, se fondea con un movimiento y despues se le aplica el estado",
+              "// (una cuenta bloqueada o cerrada ya no admite movimientos).",
+              "function cuenta(variable, saldo, estado) {",
+              "  return function (next) {",
+              "    pm.sendRequest(utils.req(\"POST\", \"/api/v2/cuentas\", { usuarioId: usuarioId, tipoCuenta: \"ahorro\", moneda: \"PYG\" }), function (err, res) {",
+              "      if (err || res.code !== 201) { throw new Error(\"No se pudo abrir \" + variable + \": \" + (err || res.text())); }",
+              "      var id = res.json().data.id;",
+              "      pm.collectionVariables.set(variable, id);",
+              "      var pasos = [];",
+              "      if (saldo > 0) {",
+              "        pasos.push(function (n) {",
+              "          pm.sendRequest(utils.req(\"POST\", \"/api/v2/cuentas/\" + id + \"/movimientos\", { tipo: \"credito\", monto: saldo, descripcion: \"Fondeo fixture G04\" }), function (e, r) {",
+              "            if (e || r.code !== 201) { throw new Error(\"No se pudo fondear \" + variable + \": \" + (e || r.text())); }",
+              "            n();",
+              "          });",
+              "        });",
+              "      }",
+              "      if (estado) {",
+              "        pasos.push(function (n) {",
+              "          pm.sendRequest(utils.req(\"PATCH\", \"/api/v2/cuentas/\" + id + \"/estado\", { estado: estado }), function (e, r) {",
+              "            if (e || r.code !== 200) { throw new Error(\"No se pudo pasar \" + variable + \" a \" + estado + \": \" + (e || r.text())); }",
+              "            n();",
+              "          });",
+              "        });",
+              "      }",
+              "      utils.secuencia(pasos, next);",
+              "    });",
+              "  };",
+              "}",
+              "",
+              "utils.secuencia([",
+              "  cuenta(\"cuentaPropiaOrigenId\", 1000000),",
+              "  cuenta(\"cuentaPropiaDestinoId\", 0),",
+              "  cuenta(\"cuentaSaldoBajoId\", 1000),",
+              "  cuenta(\"cuentaDestinoOtroId\", 0),",
+              "  cuenta(\"cuentaBloqueadaId\", 0, \"bloqueada\"),",
+              "  cuenta(\"cuentaCerradaId\", 0, \"cerrada\")",
+              "], function () {",
+              "  pm.test(\"Fixture listo: 6 cuentas del cliente \" + usuarioId, function () {",
+              "    pm.expect(Number(pm.collectionVariables.get(\"cuentaCerradaId\"))).to.be.above(0);",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"G04 Fixture Postman {{fixtureSufijo}}\",\n  \"email\": \"g04.postman.{{fixtureSufijo}}@aiquaa.test\",\n  \"documentoTipo\": \"CI\",\n  \"documentoNumero\": \"G04P{{fixtureSufijo}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/usuarios",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "usuarios"
+          ]
+        }
+      }
+    },
     {
       "name": "BDD 1 - Transferencia entre cuentas propias [@happy-path]",
       "event": [
@@ -766,6 +834,76 @@
         "body": {
           "mode": "raw",
           "raw": "{\n  \"cuentaOrigenId\": {{cuentaOrigenId}},\n  \"cuentaDestinoId\": {{cuentaDestinoId}},\n  \"monto\": {{monto}},\n  \"concepto\": \"{{concepto}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "99 - Limpieza del fixture",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Vacia y da de baja las cuentas del fixture antes de borrar el cliente.",
+              "// Una bloqueada vuelve a activa para poder debitarla; una cerrada ya tiene saldo 0.",
+              "var variables = [\"cuentaPropiaOrigenId\", \"cuentaPropiaDestinoId\", \"cuentaSaldoBajoId\", \"cuentaDestinoOtroId\", \"cuentaBloqueadaId\", \"cuentaCerradaId\"];",
+              "utils.secuencia(variables.map(function (v) {",
+              "  return function (next) {",
+              "    var id = pm.collectionVariables.get(v);",
+              "    if (!id) { return next(); }",
+              "    pm.sendRequest(utils.req(\"GET\", \"/api/v2/cuentas/\" + id), function (e, r) {",
+              "      if (e || r.code !== 200) { return next(); }",
+              "      var cta = r.json().data;",
+              "      var pasos = [];",
+              "      if (cta.estado === \"bloqueada\") {",
+              "        pasos.push(function (n) { pm.sendRequest(utils.req(\"PATCH\", \"/api/v2/cuentas/\" + id + \"/estado\", { estado: \"activa\" }), function () { n(); }); });",
+              "      }",
+              "      if (cta.estado !== \"cerrada\" && Number(cta.saldo) > 0) {",
+              "        pasos.push(function (n) { pm.sendRequest(utils.req(\"POST\", \"/api/v2/cuentas/\" + id + \"/movimientos\", { tipo: \"debito\", monto: Number(cta.saldo), descripcion: \"Limpieza fixture G04\" }), function () { n(); }); });",
+              "      }",
+              "      pasos.push(function (n) { pm.sendRequest(utils.req(\"DELETE\", \"/api/v2/cuentas/\" + id), function (e2, r2) { pm.collectionVariables.set(\"limpieza_\" + v, r2 ? r2.code : \"error\"); n(); }); });",
+              "      utils.secuencia(pasos, next);",
+              "    });",
+              "  };",
+              "}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Cliente del fixture dado de baja\", function () { pm.response.to.have.status(204); });",
+              "pm.test(\"Cuentas del fixture dadas de baja\", function () {",
+              "  [\"cuentaPropiaOrigenId\", \"cuentaPropiaDestinoId\", \"cuentaSaldoBajoId\", \"cuentaDestinoOtroId\", \"cuentaBloqueadaId\", \"cuentaCerradaId\"].forEach(function (v) {",
+              "    pm.expect(Number(pm.collectionVariables.get(\"limpieza_\" + v)), v).to.eql(204);",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/usuarios/{{fixtureUsuarioId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "usuarios",
+            "{{fixtureUsuarioId}}"
+          ]
         }
       }
     }

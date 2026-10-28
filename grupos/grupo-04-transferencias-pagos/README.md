@@ -28,8 +28,9 @@ Completar antes de escribir el primer escenario:
 
 | Capa | Recursos |
 |---|---|
-| REST | `GET|POST /api/v1/transferencias`, `GET|PUT|DELETE /api/v1/transferencias/{id}`, `GET /api/v1/facturas?usuarioId=&estado=`, `GET /api/v1/facturas/{id}`, `POST /api/v1/facturas/{id}/pagar` |
-| SQL sandbox | `POST /api/v1/sql/select`, `POST /api/v1/sql/update` sobre `transferencias`, `facturas` y `pagos` |
+| REST (curso 2) | `GET|POST /api/v2/transferencias`, `GET /api/v2/transferencias/{id}`, `GET|POST /api/v2/beneficiarios`, `DELETE /api/v2/beneficiarios/{id}`; para el fixture: `POST /api/v2/usuarios`, `POST /api/v2/cuentas`, `POST /api/v2/cuentas/{id}/movimientos`, `PATCH /api/v2/cuentas/{id}/estado` |
+| SQL sandbox | `POST /api/v2/sql/select` sobre `cuentas` y `transferencias` (validaciones pre/post de la colección) |
+| Facturas | Solo existen en `/api/v1` (curso 1). Los escenarios de pago siguen `@wip` hasta que la API v2 las exponga. |
 | DB directa | usuario `qa_g04` — ver [`docs/ACCESO-DB.md`](../../docs/ACCESO-DB.md) |
 
 `POST /api/v1/transferencias` y `POST /api/v1/facturas/{id}/pagar` ya están resueltos como
@@ -54,9 +55,65 @@ npx playwright test --grep @grupo-04
 
 - El admin (`admin@aiquaa.com`) no tiene cuentas propias: en cada formulario hay que **elegir
   primero el cliente**. El cliente de lectura por defecto es `TEST_G04_USUARIO_ID=1`.
-- Los flujos que mueven saldo (transferir, pagar, alta de beneficiario) siguen en `@wip` hasta
-  tener un fixture aislado (cuentas activa/bloqueada/cerrada, factura pendiente, beneficiario y
-  límite diario).
+- Los flujos que mueven saldo (`Flujos con fixture aislado`, `@fixture`) transfieren entre cuentas
+  propias y a un beneficiario, verifican que una bloqueada no se ofrezca como origen y dan de alta un
+  beneficiario. Corren sobre el cliente del fixture y entran en el smoke del CI.
+
+## Fixture aislado
+
+[`fixtures/TransferenciasFixture.ts`](fixtures/TransferenciasFixture.ts) crea, **por escenario o
+test**, un cliente propio en la API v2 y, sobre él, lo que el caso necesita: cuentas activas con
+saldo, bloqueadas o cerradas, un ID inexistente y beneficiarios. `limpiar()` vacía saldos y da de
+baja cuentas, beneficiarios y cliente, aunque el escenario falle. Ningún escenario usa ni modifica
+datos del seed compartido. Requiere `API_KEY` del curso 2 en `.env` (local) o en el entorno
+`api_key` (CI).
+
+| Necesidad | Cómo la arma el fixture |
+|---|---|
+| Cuenta activa con saldo | `crearCuenta({ saldo })`: abre la cuenta y acredita el saldo como movimiento |
+| Cuenta bloqueada / cerrada | `crearCuenta({ estado })`: aplica el estado después del fondeo |
+| Cuenta inexistente | `CUENTA_INEXISTENTE_ID` (999999999) |
+| Beneficiario existente | `crearBeneficiario({ numeroCuenta })` |
+| Límite diario a terceros | Lo aplica la UI (Gs. 50.000.000 en PYG); el fixture fondea 60.000.000 para que el rechazo solo pueda venir del tope |
+
+La colección Postman usa el mismo esquema: `00 - Fixture` crea el cliente con sus 6 cuentas y
+`99 - Limpieza` lo borra.
+
+## Cómo ejecutar
+
+```bash
+npm run test:api:grupo-04 -- --env-var "apiKey=$API_KEY"
+```
+
+```bash
+npx cucumber-js --tags "@grupo-04 and not @wip"
+```
+
+```bash
+npx playwright test --grep @grupo-04
+```
+
+## Resultados (semana 7)
+
+Corrida de CI del PR #61 ([QA checks](https://github.com/stevenayal/curso_automatizacion/actions/runs/40668579486),
+[Newman G04](https://github.com/stevenayal/curso_automatizacion/actions/runs/40668580500)):
+
+| Suite | Resultado |
+|---|---|
+| Newman | 8 requests de la colección (51 HTTP con pre/post), 34/34 aserciones |
+| Cucumber G04 | 11/11 escenarios (los 2 de factura, `@wip`) |
+| Playwright G04 | 9/9 tests (5 smoke de solo lectura + 4 con fixture) |
+
+Evidencia en [`evidence/semana-07/`](evidence/semana-07): JUnit de Newman e informe PDF. El JSON de
+Newman no se versiona porque incluye los headers de las requests, entre ellos la API key.
+
+### Incidencias
+
+- La API v2 no tiene facturas: *Pago exitoso* y *Pago con saldo insuficiente* siguen `@wip`.
+- El límite diario a terceros lo valida la UI, no la API: un `POST /api/v2/transferencias` por encima
+  del tope se acepta si hay saldo.
+- La colección tenía una API key commiteada; ahora llega por `--env-var apiKey=...` o por el
+  environment.
 
 ## Entregables
 
@@ -64,8 +121,8 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [x] Análisis y alcance (sección de arriba completa)
 - [x] BDD — `features/transferencias-pagos.feature` (happy path, negativo y edge case)
-- [ ] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico
-- [ ] UI — `tests/e2e/transferencias-pagos.spec.ts` con Playwright (smoke no destructivo listo; faltan flujos con fixture)
-- [ ] Evidencias en `evidence/`
-- [ ] CI/CD verde
-- [ ] PR de `grupo-04-transferencias-pagos` hacia `main` usando la plantilla del repo
+- [x] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico
+- [x] UI — `tests/e2e/transferencias-pagos.spec.ts` con Playwright
+- [x] Evidencias en `evidence/`
+- [x] CI/CD verde
+- [x] PR de `grupo-04-transferencias-pagos` hacia `main` usando la plantilla del repo (#61)
