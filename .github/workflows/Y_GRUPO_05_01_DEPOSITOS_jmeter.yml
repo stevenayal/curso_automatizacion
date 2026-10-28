@@ -1,0 +1,224 @@
+name: Grupo 05-01 - JMeter, Grafana e informe PDF
+
+on:
+  push:
+    branches: [grupo_5]
+    paths:
+      - '.github/workflows/Y_GRUPO_05_01_DEPOSITOS_jmeter.yml'
+      - 'tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx'
+      - 'tests/performance/plans/D_GRUPO_05_01_DEPOSITOS.csv'
+      - 'tests/performance/properties/grupo-05-01.properties'
+  pull_request:
+    paths:
+      - '.github/workflows/Y_GRUPO_05_01_DEPOSITOS_jmeter.yml'
+      - 'tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx'
+      - 'tests/performance/plans/D_GRUPO_05_01_DEPOSITOS.csv'
+      - 'tests/performance/properties/grupo-05-01.properties'
+  workflow_dispatch:
+    inputs:
+      threads:
+        description: Usuarios concurrentes
+        default: '2'
+      loops:
+        description: Iteraciones por usuario (4 solicitudes por iteracion)
+        default: '3'
+      throughput:
+        description: Tasa total objetivo en solicitudes/minuto
+        default: '30'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grupo-05-01-depositos-performance
+  cancel-in-progress: false
+
+env:
+  THREADS: ${{ inputs.threads || '2' }}
+  LOOPS: ${{ inputs.loops || '3' }}
+  TARGET_PER_MIN: ${{ inputs.throughput || '30' }}
+  SLA_ERROR_RATE: '1'
+  SLA_P95_MS: '3000'
+  RESULTS_DIR: test-results/performance/grupo-05-01
+  MONITORING_DASHBOARD_URL: https://purplespinach239.grafana.net/public-dashboards/32c376cff7ef437faa3435bd863f5a79
+  PYTHONIOENCODING: utf-8
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  performance:
+    name: Depositos - Carga, Grafana y PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    environment: api_key
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v5
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar JMeter 5.6.3
+        run: |
+          curl --fail --location --silent --show-error \
+            https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz \
+            -o "$RUNNER_TEMP/jmeter.tgz"
+          tar -xzf "$RUNNER_TEMP/jmeter.tgz" -C "$RUNNER_TEMP"
+          echo "JMETER_HOME=$RUNNER_TEMP/apache-jmeter-5.6.3" >> "$GITHUB_ENV"
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            skills/jmeter-skill/reporter/requirements.txt
+            tests/performance/monitoring/requirements.txt
+
+      - name: Instalar dependencias existentes del informe y monitoreo
+        run: |
+          python -m pip install -r skills/jmeter-skill/reporter/requirements.txt \
+            -r tests/performance/monitoring/requirements.txt
+
+      - name: Verificar carga y cuentas del CSV
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          python - <<'PY'
+          import csv, json, os, urllib.request
+          from decimal import Decimal
+          from pathlib import Path
+
+          threads, loops, rate = (int(os.environ[name]) for name in ('THREADS', 'LOOPS', 'TARGET_PER_MIN'))
+          if not (1 <= threads <= 10 and 1 <= loops <= 10 and 1 <= rate <= 120):
+              raise SystemExit('Carga fuera de los limites del ensayo.')
+          if (threads * loops * 4 - 1) * 60 / rate + 25 > 180:
+              raise SystemExit('La carga debe permitir completar las iteraciones en 180 segundos.')
+          key = os.environ.get('API_KEY', '').strip()
+          if not key:
+              raise SystemExit('Falta el secret API_KEY.')
+          rows = list(csv.DictReader(open('tests/performance/plans/D_GRUPO_05_01_DEPOSITOS.csv', encoding='utf-8')))
+          accounts = sorted({int(row['cuentaId']) for row in rows})
+          slots = ','.join('$' + str(i + 1) for i in range(len(accounts)))
+          request = urllib.request.Request('https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select',
+              headers={'x-api-key': key, 'Content-Type': 'application/json'},
+              data=json.dumps({'sql': f'SELECT id, usuario_id, saldo, estado, activa FROM cuentas WHERE id IN ({slots})', 'params': accounts}).encode())
+          with urllib.request.urlopen(request, timeout=25) as response:
+              data = json.load(response)['data']
+          if len(data) != len(accounts):
+              raise SystemExit('Faltan cuentas del CSV.')
+          for account in data:
+              matching = [row for row in rows if int(row['cuentaId']) == account['id']]
+              if (not account['activa'] or account['estado'] != 'activa'
+                      or any(int(row['usuarioId']) != account['usuario_id'] for row in matching)
+                      or Decimal(account['saldo']) < max(Decimal(row['monto']) for row in matching) * threads):
+                  raise SystemExit('Revisar titular, estado o saldo de las cuentas del CSV.')
+          output = Path(os.environ['RESULTS_DIR'])
+          output.mkdir(parents=True, exist_ok=True)
+          (output / 'precondiciones.json').write_text(json.dumps(data, indent=2), encoding='utf-8')
+          print(f'Carga: {threads} usuarios, {loops} iteraciones, {threads * loops * 4} solicitudes.')
+          PY
+
+      - name: Ejecutar plan headless
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          java -Djava.awt.headless=true -Xms256m -Xmx512m \
+            -jar "$JMETER_HOME/bin/ApacheJMeter.jar" \
+            -n -t tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx \
+            -q tests/performance/properties/grupo-05-01.properties \
+            -Jthreads="$THREADS" -Jloops="$LOOPS" -Jthroughput="$TARGET_PER_MIN" \
+            -JmaxResponseMs="$SLA_P95_MS" -Jsample_variables=caso,depositoId,estado \
+            -l "$RESULTS_DIR/R_GRUPO_05_01_DEPOSITOS.jtl" \
+            -j "$RESULTS_DIR/jmeter.log" -e -o "$RESULTS_DIR/dashboard"
+
+      - name: Capturar Grafana
+        if: always()
+        continue-on-error: true
+        run: |
+          python tests/performance/monitoring/capture_dashboard.py \
+            --url "$MONITORING_DASHBOARD_URL" \
+            --output "$RESULTS_DIR/evidence/GRAFANA_GRUPO_05_01.png" \
+            --wait-seconds 8 --height 2160 --ready-timeout-seconds 180
+
+      - name: Generar PDF con la skill JMeter
+        if: always()
+        run: |
+          python skills/jmeter-skill/reporter/jmeter_report.py \
+            --results "$RESULTS_DIR/R_GRUPO_05_01_DEPOSITOS.jtl" \
+            --output "$RESULTS_DIR/INFORME_PERF_GRUPO_05_01_DEPOSITOS.pdf" \
+            --api-name "Grupo 05-01 - Depositos API v2 (umbrales de practica)" \
+            --perfil carga --threads "$THREADS" --loops "$LOOPS" \
+            --sla-error-rate "$SLA_ERROR_RATE" --sla-p95 "$SLA_P95_MS" \
+            --api-version v2 --repo-url https://github.com/stevenayal/curso_automatizacion \
+            --author "Grupo 05-01 - Marcos Flores, Jackelin Peña y Ada Melgarejo" \
+            --evidence-image "$RESULTS_DIR/evidence/GRAFANA_GRUPO_05_01.png" \
+            --evidence-label "Grafana compartido al finalizar la carga" \
+            --evidence-url "$MONITORING_DASHBOARD_URL"
+
+      - name: Evaluar resultados y verificar cancelacion
+        if: always()
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          python - <<'PY'
+          import csv, json, os, sys, urllib.request
+          from pathlib import Path
+
+          sys.path.insert(0, 'skills/jmeter-skill/reporter')
+          from jmeter_report import get_verdict, parse_jtl
+
+          output = Path(os.environ['RESULTS_DIR'])
+          jtl = output / 'R_GRUPO_05_01_DEPOSITOS.jtl'
+          stats, _, _ = parse_jtl(str(jtl))
+          verdict, level = get_verdict(stats, float(os.environ['SLA_ERROR_RATE']), float(os.environ['SLA_P95_MS']))
+          samples = list(csv.DictReader(jtl.open(encoding='utf-8-sig')))
+          groups = {}
+          for sample in samples:
+              groups.setdefault((sample['threadName'], sample['depositoId']), []).append(sample['responseCode'])
+          expected = int(os.environ['THREADS']) * int(os.environ['LOOPS'])
+          complete = len(groups) == expected and all(codes == ['201', '200', '200', '200'] for codes in groups.values())
+          ids = sorted({int(sample['depositoId']) for sample in samples if sample['depositoId'].isdigit()})
+          data = []
+          if ids:
+              slots = ','.join('$' + str(i + 1) for i in range(len(ids)))
+              request = urllib.request.Request('https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select',
+                  headers={'x-api-key': os.environ['API_KEY'], 'Content-Type': 'application/json'},
+                  data=json.dumps({'sql': f'SELECT id, estado FROM depositos WHERE id IN ({slots}) ORDER BY id', 'params': ids}).encode())
+              with urllib.request.urlopen(request, timeout=25) as response:
+                  data = json.load(response)['data']
+          clean = len(data) == expected and all(row['estado'] == 'cancelado' for row in data)
+          (output / 'limpieza.json').write_text(json.dumps(data, indent=2), encoding='utf-8')
+          checks = {'umbrales': level == 'pass', 'flujo_completo': complete and stats['total'] == expected * 4,
+                    'cancelacion': clean, 'grafana': (output / 'evidence/GRAFANA_GRUPO_05_01.png').is_file()}
+          result = {'status': 'PASS' if all(checks.values()) else 'FAIL', 'checks': checks, 'stats': stats,
+                    'verdict': verdict, 'nota': 'Umbrales de practica; Grafana muestra metricas de una sandbox compartida.'}
+          (output / 'resumen.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+          if os.getenv('GITHUB_STEP_SUMMARY'):
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+                  summary.write(f"### Grupo 05-01 - Rendimiento\n\nEstado: {result['status']}\n\nRequests: {stats['total']} | P95: {stats['p95']} ms | Errores: {stats['error_rate']}%\n")
+          print(json.dumps(result))
+          if not all(checks.values()):
+              raise SystemExit(1)
+          PY
+
+      - name: Publicar informe PDF
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: test-results/performance/grupo-05-01/INFORME_PERF_GRUPO_05_01_DEPOSITOS.pdf
+          archive: false
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publicar resultados del grupo
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: grupo-05-01-jmeter-grafana-reportes
+          path: test-results/performance/grupo-05-01/
+          if-no-files-found: warn
+          retention-days: 14

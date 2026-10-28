@@ -91,3 +91,19 @@ compartidas: 12 solicitudes HTTP en total. Se pueden ajustar con `-Jthreads=...`
 se configura con `-JmaxResponseMs=3000` como umbral de la práctica.
 Mantener el CSV junto al JMX o indicar `-JcsvFile` con su ruta absoluta.
 El JTL y el dashboard HTML quedan en `newman/`, excluido de Git.
+
+## Rendimiento por pipeline y Grafana
+
+El workflow `Y_GRUPO_05_01_DEPOSITOS_jmeter.yml` ejecuta el plan de depósitos,
+captura el Grafana público y genera el PDF con la skill JMeter del repositorio.
+Usa 2 usuarios, 3 iteraciones y 30 solicitudes/minuto compartidas: 24 solicitudes
+HTTP. Verifica las respuestas, los umbrales y la cancelación de los depósitos.
+Los umbrales de la práctica son P95 de hasta 3000 ms y errores de hasta 1 %;
+Grafana muestra métricas compartidas de la sandbox.
+
+En GitHub, configurar `API_KEY` en el entorno `api_key`. El workflow se ejecuta
+con push a `grupo_5`, mediante un PR con cambios en sus archivos o desde Actions. Publica el PDF, JTL,
+dashboard HTML, captura y resumen como artefactos durante 14 días.
+
+Para usar esta carga localmente, agregar
+`-q tests/performance/properties/grupo-05-01.properties` al comando JMeter anterior.
