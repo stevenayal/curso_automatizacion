@@ -25,8 +25,9 @@ permissions:
 
 # La coleccion modifica datos compartidos: evitar dos corridas simultaneas.
 concurrency:
-  group: grupo-05-01-ahorros-depositos-api
+  group: grupo-05-01-sandbox
   cancel-in-progress: false
+  queue: max
 
 jobs:
   newman:

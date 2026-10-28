@@ -32,8 +32,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: grupo-05-01-depositos-performance
+  group: grupo-05-01-sandbox
   cancel-in-progress: false
+  queue: max
 
 env:
   THREADS: ${{ inputs.threads || '2' }}
