@@ -95,6 +95,9 @@ test.describe('Grupo 04 — Beneficiarios (smoke no destructivo) @smoke @grupo-0
  * verifican son exactos y no dependen del seed compartido.
  */
 test.describe('Grupo 04 — Flujos con fixture aislado @smoke @grupo-04 @fixture', () => {
+  // El fixture reintenta ante 429 (API key compartida del CI): más margen que el timeout global.
+  test.describe.configure({ timeout: 120_000 });
+
   let fixture: TransferenciasFixture;
 
   test.beforeEach(async ({ page }) => {

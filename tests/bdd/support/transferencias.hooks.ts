@@ -8,12 +8,12 @@ import type { G04World } from '../steps/transferencias.steps';
 let browser: Browser | undefined;
 
 // Todos los escenarios de G04 corren sobre un cliente propio: ninguno toca datos compartidos.
-Before({ tags: '@grupo-04 and not @wip' }, async function (this: G04World) {
+Before({ tags: '@grupo-04 and not @wip', timeout: 120_000 }, async function (this: G04World) {
   this.g04 = { fixture: new TransferenciasFixture() };
   await this.g04.fixture.crearCliente();
 });
 
-Before({ tags: '@grupo-04 and @web and not @wip' }, async function (this: G04World) {
+Before({ tags: '@grupo-04 and @web and not @wip', timeout: 120_000 }, async function (this: G04World) {
   browser ??= await chromium.launch({ headless: process.env.HEADED !== '1' });
   this.browser = browser;
   this.context = await browser.newContext({
@@ -23,7 +23,7 @@ Before({ tags: '@grupo-04 and @web and not @wip' }, async function (this: G04Wor
   await new SandboxLoginPage(this.page).ingresarCurso2(process.env.TEST_ADMIN_EMAIL || 'admin@aiquaa.com');
 });
 
-After({ tags: '@grupo-04 and @web and not @wip' }, async function (this: G04World, { result }) {
+After({ tags: '@grupo-04 and @web and not @wip', timeout: 120_000 }, async function (this: G04World, { result }) {
   try {
     if (result?.status === Status.FAILED && this.page) {
       await this.attach(await this.page.screenshot(), 'image/png');
@@ -33,7 +33,7 @@ After({ tags: '@grupo-04 and @web and not @wip' }, async function (this: G04Worl
   }
 });
 
-After({ tags: '@grupo-04 and not @wip' }, async function (this: G04World) {
+After({ tags: '@grupo-04 and not @wip', timeout: 120_000 }, async function (this: G04World) {
   await this.g04?.fixture.limpiar();
 });
 
