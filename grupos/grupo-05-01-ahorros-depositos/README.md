@@ -47,6 +47,25 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 - [ ] CI/CD verde
 - [ ] PR de `grupo_5` hacia `main` usando la plantilla del repo
 
+## Semana 4 — GitHub Actions y Newman
+
+El workflow [grupo-05-01-ahorros-depositos.yml](../../.github/workflows/grupo-05-01-ahorros-depositos.yml)
+ejecuta los 9 escenarios de la colección existente, genera JSON y JUnit, convierte
+los resultados a PDF con Python y publica los reportes como artefactos por 14 días.
+Se activa con cambios del grupo en un PR, con push a `grupo_5`/`main` o manualmente.
+
+Para ejecutar desde la raíz del repositorio:
+
+```powershell
+npm ci
+# Crear .env a partir de .env.example y completar API_KEY con la clave del curso 2.
+npm run test:api:grupo-05-01
+```
+
+Los reportes locales quedan en `newman/grupo-05-01/`, excluido de Git.
+La ejecución real de Actions y el PR deben enlazarse al completar la entrega;
+el checklist de CI/CD queda pendiente hasta verificar una corrida verde.
+
 ## JMeter — Depósitos
 
 El [plan JMX](../../tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx) usa el
@@ -72,3 +91,19 @@ compartidas: 12 solicitudes HTTP en total. Se pueden ajustar con `-Jthreads=...`
 se configura con `-JmaxResponseMs=3000` como umbral de la práctica.
 Mantener el CSV junto al JMX o indicar `-JcsvFile` con su ruta absoluta.
 El JTL y el dashboard HTML quedan en `newman/`, excluido de Git.
+
+## Rendimiento por pipeline y Grafana
+
+El workflow `Y_GRUPO_05_01_DEPOSITOS_jmeter.yml` ejecuta el plan de depósitos,
+captura el Grafana público y genera el PDF con la skill JMeter del repositorio.
+Usa 2 usuarios, 3 iteraciones y 30 solicitudes/minuto compartidas: 24 solicitudes
+HTTP. Verifica las respuestas, los umbrales y la cancelación de los depósitos.
+Los umbrales de la práctica son P95 de hasta 3000 ms y errores de hasta 1 %;
+Grafana muestra métricas compartidas de la sandbox.
+
+En GitHub, configurar `API_KEY` en el entorno `api_key`. El workflow se ejecuta
+con push a `grupo_5`, mediante un PR con cambios en sus archivos o desde Actions. Publica el PDF, JTL,
+dashboard HTML, captura y resumen como artefactos durante 14 días.
+
+Para usar esta carga localmente, agregar
+`-q tests/performance/properties/grupo-05-01.properties` al comando JMeter anterior.
