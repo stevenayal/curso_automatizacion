@@ -16,9 +16,13 @@ jobs:
   checks:
     name: BDD + smoke UI
     runs-on: ubuntu-latest
+    # El secret API_KEY vive en el entorno api_key (igual que los workflows de grupos).
+    environment: api_key
     env:
       # Sitio bajo prueba: el mismo que usa playwright.config.ts y .env.example.
       BASE_URL: ${{ vars.BASE_URL || 'https://aiquaa-sandbox-web.vercel.app' }}
+      # Los steps de API (p. ej. CuentasPage de grupo 01) leen process.env.API_KEY.
+      API_KEY: ${{ secrets.API_KEY }}
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
