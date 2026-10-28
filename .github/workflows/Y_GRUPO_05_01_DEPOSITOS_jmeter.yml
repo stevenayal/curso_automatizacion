@@ -4,12 +4,14 @@ on:
   push:
     branches: [grupo_5]
     paths:
+      - 'grupos/grupo-05-01-ahorros-depositos/README.md'
       - '.github/workflows/Y_GRUPO_05_01_DEPOSITOS_jmeter.yml'
       - 'tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx'
       - 'tests/performance/plans/D_GRUPO_05_01_DEPOSITOS.csv'
       - 'tests/performance/properties/grupo-05-01.properties'
   pull_request:
     paths:
+      - 'grupos/grupo-05-01-ahorros-depositos/README.md'
       - '.github/workflows/Y_GRUPO_05_01_DEPOSITOS_jmeter.yml'
       - 'tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx'
       - 'tests/performance/plans/D_GRUPO_05_01_DEPOSITOS.csv'
