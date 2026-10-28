@@ -13,6 +13,7 @@ Cada estudiante elige **un solo grupo**, máximo **3 integrantes** por grupo.
 | 03 | `grupo-03-prestamos` | Préstamos | préstamos, cuotas, saldo, vencimientos y estado |
 | 04 | `grupo-04-transferencias-pagos` | Transferencias y Pagos | transferencias, beneficiarios, importes y estados |
 | 05 | `grupo-05-ahorros-depositos` | Ahorros y Depósitos | ahorros, depósitos, tasas, plazos y vencimientos |
+| 05-01 | `grupo-05-01-ahorros-depositos` (rama `grupo_5`) | Ahorros y Depósitos | trabajo del equipo en una carpeta independiente |
 
 > Los módulos de **Préstamos** y **Ahorros/Depósitos** todavía no tienen endpoints REST
 > publicados en la sandbox API: esos grupos arrancan por BDD + validación SQL. Ver el README de

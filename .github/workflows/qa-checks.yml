@@ -48,8 +48,8 @@ jobs:
         with:
           name: cucumber-report
           path: |
-            newman/cucumber-report.json
-            newman/cucumber-report.html
+            results/cucumber-report.json
+            results/cucumber-report.html
           if-no-files-found: warn
           retention-days: 7
 

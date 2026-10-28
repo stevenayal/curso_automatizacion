@@ -74,4 +74,4 @@ Siguiente acción: <qué falta comprobar y quién>
 
 - JMeter ya tiene su workflow (`Y_AIQUAAECHO_jmeter.yml`); la carga se programa aparte.
 - `qa-checks.yml` usa la misma sandbox (`BASE_URL`) y aplica el mismo control de cero
-  escenarios sobre `newman/cucumber-report.json` (`npm run test:bdd:check:default`).
+  escenarios sobre `results/cucumber-report.json` (`npm run test:bdd:check:default`).

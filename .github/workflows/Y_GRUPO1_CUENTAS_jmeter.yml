@@ -1,0 +1,145 @@
+name: JMeter Grupo 1 - Cuentas Bancarias
+
+on:
+  workflow_dispatch:
+    inputs:
+      threads:
+        description: Usuarios concurrentes
+        required: false
+        default: '1'
+      loops:
+        description: Cantidad de iteraciones
+        required: false
+        default: '3'
+      monitoring_dashboard_url:
+        description: URL publica de Grafana
+        required: false
+        default: https://purplespinach239.grafana.net/public-dashboards/32c376cff7ef437faa3435bd863f5a79
+
+permissions:
+  contents: read
+
+env:
+  THREADS: ${{ inputs.threads || '1' }}
+  LOOPS: ${{ inputs.loops || '3' }}
+  MONITORING_DASHBOARD_URL: ${{ inputs.monitoring_dashboard_url }}
+  RESULTS_DIR: test-results/performance
+  EVIDENCE_IMAGE: test-results/performance/evidence/EVIDENCIA_GRAFANA_GRUPO1.png
+  SLA_ERROR_RATE: '1'
+  SLA_P95_MS: '1500'
+
+jobs:
+  performance:
+    name: JMeter Grupo 1 + Grafana + PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar JMeter
+        run: |
+          curl --fail --location --silent --show-error \
+            https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz \
+            -o jmeter.tgz
+          tar -xzf jmeter.tgz
+
+      - name: Ejecutar prueba JMeter
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          if [ -z "$API_KEY" ]; then
+            echo "::error::Falta configurar el secret API_KEY"
+            exit 1
+          fi
+
+          mkdir -p "$RESULTS_DIR"
+
+          apache-jmeter-5.6.3/bin/jmeter \
+            -n \
+            -t tests/performance/plans/P_GRUPO1_CUENTAS.jmx \
+            -Japi_key="$API_KEY" \
+            -Jthreads="$THREADS" \
+            -Jloops="$LOOPS" \
+            -l "$RESULTS_DIR/R_GRUPO1_CUENTAS.jtl" \
+            -e \
+            -o "$RESULTS_DIR/dashboard"
+
+      - name: Configurar Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias del reporte
+        if: always()
+        run: |
+          python -m pip install -r skills/jmeter-skill/reporter/requirements.txt
+
+      - name: Instalar dependencias de monitoreo
+        if: always()
+        run: |
+          python -m pip install -r tests/performance/monitoring/requirements.txt
+
+      - name: Capturar Grafana
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p test-results/performance/evidence
+
+          python tests/performance/monitoring/capture_dashboard.py \
+            --url "$MONITORING_DASHBOARD_URL" \
+            --output "$EVIDENCE_IMAGE" \
+            --wait-seconds 8 \
+            --height 2400 \
+            --ready-timeout-seconds 180
+
+      - name: Generar informe PDF
+        if: always()
+        run: |
+          EVIDENCE_ARGS=()
+
+          if [ -f "$EVIDENCE_IMAGE" ]; then
+            EVIDENCE_ARGS=(
+              --evidence-image "$EVIDENCE_IMAGE"
+              --evidence-label "Dashboard Grafana - Grupo 1"
+              --evidence-url "$MONITORING_DASHBOARD_URL"
+            )
+          fi
+
+          python skills/jmeter-skill/reporter/jmeter_report.py \
+            --results "$RESULTS_DIR/R_GRUPO1_CUENTAS.jtl" \
+            --output "$RESULTS_DIR/INFORME_PERF_GRUPO1_CUENTAS.pdf" \
+            --api-name "Grupo 1 - Cuentas Bancarias" \
+            --perfil carga \
+            --threads "$THREADS" \
+            --loops "$LOOPS" \
+            --sla-error-rate "$SLA_ERROR_RATE" \
+            --sla-p95 "$SLA_P95_MS" \
+            --repo-url "${{ github.server_url }}/${{ github.repository }}" \
+            --author "Grupo 1 - Cuentas Bancarias" \
+            "${EVIDENCE_ARGS[@]}"
+
+      - name: Publicar PDF
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: test-results/performance/INFORME_PERF_GRUPO1_CUENTAS.pdf
+          archive: false
+          if-no-files-found: warn
+
+      - name: Publicar resultados JMeter
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jmeter-grupo1-cuentas
+          path: test-results/performance
+          if-no-files-found: warn
+          retention-days: 14

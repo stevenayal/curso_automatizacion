@@ -1,0 +1,104 @@
+name: Allure Report (standalone)
+
+# Workflow dedicado exclusivamente a generar el informe Allure HTML + PDF.
+# Corre de forma independiente a bdd-pom-ci.yml para no bloquear el CI principal.
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Filtro de tags de Cucumber"
+        required: false
+        default: "not @wip"
+  workflow_run:
+    workflows: ["BDD + POM (sandbox)"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: allure-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  allure:
+    name: Generar informe Allure + PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BDD_CONFIG: tests/bdd/sandbox-pom/cucumber.js
+      BASE_URL: ${{ vars.BASE_URL_SANDBOX || 'https://aiquaa-sandbox-web.vercel.app' }}
+      CUCUMBER_TAGS: ${{ inputs.tags || 'not @wip' }}
+      HEADED: '0'
+      CI: true
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Preparar directorios
+        run: mkdir -p ci-evidence results allure-results allure-report
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar deps Allure (si no están en package.json)
+        run: |
+          npm ls allure-playwright    >/dev/null 2>&1 || npm install --no-save allure-playwright@^3.3.0
+          npm ls allure-cucumberjs   >/dev/null 2>&1 || npm install --no-save allure-cucumberjs@^3.3.0
+          npm ls allure-commandline  >/dev/null 2>&1 || npm install --no-save allure-commandline@^2.34.0
+
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar escenarios BDD (con reporter Allure)
+        id: bdd
+        continue-on-error: true
+        run: |
+          npx cucumber-js \
+            --config "$BDD_CONFIG" \
+            --profile sandbox \
+            --format allure-cucumberjs/reporter \
+            --format progress \
+            --format "html:results/cucumber.html" \
+            --format "json:results/cucumber.json" \
+            2>&1 | tee ci-evidence/01-bdd.log
+
+      - name: Ejecutar pruebas Playwright (con reporter Allure)
+        id: playwright
+        continue-on-error: true
+        run: |
+          PLAYWRIGHT_REPORTER=allure-playwright npx playwright test \
+            --reporter=allure-playwright,list \
+            2>&1 | tee ci-evidence/02-playwright.log
+
+      - name: Generar informe Allure HTML
+        if: always()
+        run: |
+          npx allure generate allure-results --clean -o allure-report \
+            2>&1 | tee ci-evidence/03-allure-generate.log
+
+      - name: Exportar informe Allure a PDF (Playwright)
+        if: always()
+        run: |
+          node scripts/export_allure_pdf.mjs \
+            2>&1 | tee ci-evidence/04-allure-pdf.log
+
+      - name: Publicar artefactos Allure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-${{ github.run_number }}
+          path: |
+            allure-report/
+            allure-results/
+            ci-evidence/
+            results/
+          if-no-files-found: warn
+          retention-days: 14

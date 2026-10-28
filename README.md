@@ -16,6 +16,7 @@ Request.
 | 03 | [`grupo-03-prestamos`](grupos/grupo-03-prestamos) | Préstamos, cuotas, saldo, vencimientos y estado |
 | 04 | [`grupo-04-transferencias-pagos`](grupos/grupo-04-transferencias-pagos) | Transferencias, beneficiarios, importes y estados |
 | 05 | [`grupo-05-ahorros-depositos`](grupos/grupo-05-ahorros-depositos) | Ahorros, depósitos, tasas, plazos y vencimientos |
+| 05-01 | [`grupo-05-01-ahorros-depositos`](grupos/grupo-05-01-ahorros-depositos) | Ahorros y depósitos — equipo de la rama `grupo_5` |
 
 Un solo grupo por estudiante, máximo 3 integrantes. Lista de la clase en
 [`docs/ROSTER.md`](docs/ROSTER.md).

@@ -37,7 +37,7 @@ npx cucumber-js -p wip
 
 ## Control de cobertura en CI
 
-`npm run test:bdd` escribe `newman/cucumber-report.json` y `newman/cucumber-report.html`.
+`npm run test:bdd` escribe `results/cucumber-report.json` y `results/cucumber-report.html`.
 Después, `npm run test:bdd:check:default` ([`scripts/check-cucumber-results.mjs`](../../scripts/check-cucumber-results.mjs))
 **falla si no se ejecutó ningún escenario** (por ejemplo, porque todo quedó `@wip`) y publica el
 detalle por escenario en el resumen del job. Los dos reportes se suben como artefacto

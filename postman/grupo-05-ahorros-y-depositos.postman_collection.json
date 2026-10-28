@@ -1,0 +1,1423 @@
+{
+  "info": {
+    "_postman_id": "92f8bdfe-a117-4d5b-9b6e-91ca506b73cd",
+    "name": "Grupo 05 - Ahorros y Depositos",
+    "description": "Coleccion del Grupo 05 (Ahorros y Depositos) sobre AIQUAA /api/v2. Cada request esta mapeado a un escenario BDD (ver docs/trazabilidad-bdd-api.md). Tarea 3: los pre-request obtienen datos dinamicos con POST /api/v2/sql/select (solo SELECT parametrizados y acotados) y los post-request releen la BD para validar que coincide con la API. apiKey va solo en el environment o por --env-var (nunca en archivos). ATENCION: los escenarios 4, 8, 12, 13 y 14 escriben datos en el sandbox; el 8 deja inmovilizado el saldo de cuentaSaldoTotalId (cuenta descartable).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Escenario 1 - Consultar deposito a plazo vigente",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: elige un deposito real en estado 'activo' (SELECT acotado con LIMIT 1).",
+              "utils.sqlUna(\"SELECT id FROM depositos WHERE estado = $1 ORDER BY id LIMIT 1\", [\"activo\"], function (fila) {",
+              "    if (fila) { pm.collectionVariables.set(\"depositoVigenteId\", fila.id); }",
+              "    else { console.warn(\"No hay depositos 'activo' en la BD: se usa depositoVigenteId = \" + pm.collectionVariables.get(\"depositoVigenteId\")); }",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('La respuesta tiene los datos del deposito', function () {",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data.id).to.eql(Number(pm.variables.get('depositoVigenteId')));",
+              "    pm.expect(data).to.have.property('monto');",
+              "    pm.expect(data).to.have.property('tasa_anual');",
+              "    pm.expect(data).to.have.property('fecha_vencimiento');",
+              "});",
+              "pm.test('El deposito esta activo', function () { pm.expect(pm.response.json().data.estado).to.eql('activo'); });",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: la fila de la BD coincide con lo que devolvio la API.",
+              "const resp = pm.response.json().data;",
+              "utils.sqlUna(\"SELECT id, estado, monto, tasa_anual, plazo_dias FROM depositos WHERE id = $1\",",
+              "    [Number(pm.variables.get(\"depositoVigenteId\"))], function (fila) {",
+              "    pm.test(\"La BD confirma el deposito con los mismos datos que la API\", function () {",
+              "        pm.expect(fila, \"no se encontro la fila en la BD\").to.not.be.null;",
+              "        pm.expect(fila.estado).to.eql(resp.estado);",
+              "        pm.expect(utils.centavos(fila.monto)).to.eql(utils.centavos(resp.monto));",
+              "        pm.expect(utils.centavos(fila.tasa_anual)).to.eql(utils.centavos(resp.tasa_anual));",
+              "        pm.expect(fila.plazo_dias).to.eql(resp.plazo_dias);",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoVigenteId}}"
+          ]
+        },
+        "description": "BDD: Dado que el cliente tiene un deposito a plazo vigente; cuando consulta su detalle; entonces recibe capital, tasa y vencimiento.",
+        "auth": {
+          "type": "apikey"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 2 - Deposito en su fecha de vencimiento",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: elige un deposito real en estado 'vencido' (SELECT acotado con LIMIT 1).",
+              "utils.sqlUna(\"SELECT id FROM depositos WHERE estado = $1 ORDER BY id LIMIT 1\", [\"vencido\"], function (fila) {",
+              "    if (fila) { pm.collectionVariables.set(\"depositoVencidoId\", fila.id); }",
+              "    else { console.warn(\"No hay depositos 'vencido' en la BD: se usa depositoVencidoId = \" + pm.collectionVariables.get(\"depositoVencidoId\")); }",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('El deposito esta vencido', function () { pm.expect(pm.response.json().data.estado).to.eql('vencido'); });",
+              "pm.test('La respuesta muestra los intereses generados', function () { pm.expect(pm.response.json().data).to.have.property('interes_generado'); });",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: estado e intereses de la BD coinciden con la API.",
+              "const resp = pm.response.json().data;",
+              "utils.sqlUna(\"SELECT estado, monto, interes_generado FROM depositos WHERE id = $1\",",
+              "    [Number(pm.variables.get(\"depositoVencidoId\"))], function (fila) {",
+              "    pm.test(\"La BD confirma el deposito 'vencido' con los intereses generados\", function () {",
+              "        pm.expect(fila, \"no se encontro la fila en la BD\").to.not.be.null;",
+              "        pm.expect(fila.estado).to.eql(\"vencido\");",
+              "        pm.expect(utils.centavos(fila.interes_generado)).to.eql(utils.centavos(resp.interes_generado));",
+              "        pm.expect(utils.centavos(fila.monto)).to.eql(utils.centavos(resp.monto));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVencidoId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoVencidoId}}"
+          ]
+        },
+        "description": "BDD: Dado un deposito que vence hoy; cuando se consulta; entonces se muestra vencido y con intereses acreditados."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 3 - Constituir deposito sin saldo suficiente",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: cuenta activa real y foto (saldo y depositos) para comparar despues del rechazo.",
+              "utils.cuentaConSaldo(1, function (cuenta) { if (cuenta) { utils.snapshotCuenta(); } });"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La operacion es rechazada con status 409', function () { pm.response.to.have.status(409); });",
+              "pm.test('El error es de conflicto de regla de negocio', function () {",
+              "    pm.expect(pm.response.json().error.code).to.eql('CONFLICT');",
+              "});",
+              "pm.test('El deposito no es generado', function () {",
+              "    pm.expect(pm.response.json()).to.not.have.property('data');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: el rechazo no modifico la BD.",
+              "utils.verificarSinCambios();"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: Dado que la cuenta tiene saldo insuficiente; cuando se intenta constituir un deposito; entonces se rechaza. El monto alto es un dato de prueba; comprobar por separado que no se genero el deposito.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"cuentaId\": {{cuentaId}},\n  \"monto\": 999999999999,\n  \"plazoDias\": 30,\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 4 - Cancelar deposito a plazo antes de su vencimiento",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request: deposito propio y descartable para cancelar (no se toca depositoVigenteId).",
+              "pm.collectionVariables.unset(\"depositoCancelarId\");",
+              "const monto = Number(pm.collectionVariables.get(\"montoCancelacion\"));",
+              "utils.cuentaConSaldo(monto, function (cuenta) {",
+              "    if (!cuenta) { return; }",
+              "    utils.post(\"/api/v2/depositos\", {",
+              "        usuarioId: Number(cuenta.usuario_id), cuentaId: Number(cuenta.id),",
+              "        monto: monto, plazoDias: 90, tasaAnual: 10",
+              "    }, function (res) {",
+              "        if (!res || res.code !== 201) { console.error(\"No se pudo crear el deposito a cancelar (HTTP \" + (res && res.code) + \")\"); return; }",
+              "        const id = res.json().data.id;",
+              "        pm.collectionVariables.set(\"depositoCancelarId\", id);",
+              "        // Precondicion en la BD: el deposito esta activo y se guarda el saldo ANTES de cancelar.",
+              "        utils.sqlUna(\"SELECT d.estado, c.saldo FROM depositos d JOIN cuentas c ON c.id = d.cuenta_id WHERE d.id = $1\",",
+              "            [Number(id)], function (fila) {",
+              "            if (!fila) { return; }",
+              "            pm.variables.set(\"estadoAntes\", fila.estado);",
+              "            pm.variables.set(\"saldoAntes\", fila.saldo);",
+              "        });",
+              "    });",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La cancelacion anticipada se procesa correctamente', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Se cancela el deposito solicitado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.id).to.eql(Number(pm.variables.get('depositoCancelarId')));",
+              "});",
+              "",
+              "pm.test('El deposito queda en estado cancelado', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.estado).to.eql('cancelado');",
+              "});",
+              "",
+              "pm.test('La respuesta contiene el capital del deposito', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('monto');",
+              "    pm.expect(Number(jsonData.data.monto)).to.be.at.least(0);",
+              "});",
+              "",
+              "pm.test('La respuesta contiene los intereses generados', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('interes_generado');",
+              "    pm.expect(Number(jsonData.data.interes_generado)).to.be.at.least(0);",
+              "});",
+              "",
+              "pm.test('La respuesta contiene los dias transcurridos', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('dias_transcurridos');",
+              "    pm.expect(Number(jsonData.data.dias_transcurridos)).to.be.at.least(0);",
+              "});",
+              "",
+              "pm.test('La cuenta del cliente recibe el resultado de la cancelacion', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('cuenta');",
+              "    pm.expect(jsonData.data.cuenta).to.have.property('saldo');",
+              "    pm.expect(Number(jsonData.data.cuenta.saldo)).to.be.at.least(0);",
+              "});",
+              "",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+              "});",
+              "",
+              "// Post-request SQL: la cancelacion quedo reflejada en la BD.",
+              "// Cancelar acredita capital + interes PRORRATEADO por dias transcurridos (interes simple), no el del plazo completo.",
+              "const resp = pm.response.json().data;",
+              "utils.sqlUna(",
+              "    \"SELECT d.estado, d.monto, d.tasa_anual, d.plazo_dias, d.interes_generado, c.saldo, \" +",
+              "    \"(SELECT COUNT(*) FROM movimientos m WHERE m.referencia_tipo = 'deposito' AND m.referencia_id = d.id AND m.tipo = 'credito') AS movimientos_credito \" +",
+              "    \"FROM depositos d JOIN cuentas c ON c.id = d.cuenta_id WHERE d.id = $1\",",
+              "    [Number(pm.collectionVariables.get(\"depositoCancelarId\"))], function (fila) {",
+              "    pm.test(\"Precondicion: el deposito estaba 'activo' en la BD antes de cancelar\", function () {",
+              "        pm.expect(pm.variables.get(\"estadoAntes\")).to.eql(\"activo\");",
+              "    });",
+              "    pm.test(\"La BD confirma el deposito en estado 'cancelado'\", function () {",
+              "        pm.expect(fila, \"no se encontro la fila en la BD\").to.not.be.null;",
+              "        pm.expect(fila.estado).to.eql(\"cancelado\");",
+              "        pm.expect(utils.centavos(fila.interes_generado)).to.eql(utils.centavos(resp.interes_generado));",
+              "    });",
+              "    pm.test(\"El interes es el prorrateado por los dias transcurridos (interes simple)\", function () {",
+              "        const dias = Number(resp.dias_transcurridos);",
+              "        const prorrateado = Math.round(Number(fila.monto) * Number(fila.tasa_anual) / 100 * dias / 365 * 100);",
+              "        const completo = Math.round(Number(fila.monto) * Number(fila.tasa_anual) / 100 * Number(fila.plazo_dias) / 365 * 100);",
+              "        pm.expect(Math.abs(utils.centavos(fila.interes_generado) - prorrateado)).to.be.at.most(1); // tolerancia de redondeo: 1 centavo",
+              "        pm.expect(utils.centavos(fila.interes_generado)).to.be.at.most(completo);",
+              "    });",
+              "    pm.test(\"La cuenta se acredito con saldo_antes + monto + interes prorrateado\", function () {",
+              "        const esperado = utils.centavos(pm.variables.get(\"saldoAntes\")) + utils.centavos(fila.monto) + utils.centavos(fila.interes_generado);",
+              "        pm.expect(utils.centavos(fila.saldo)).to.eql(esperado);",
+              "    });",
+              "    pm.test(\"Se registro un movimiento de credito por la cancelacion\", function () {",
+              "        pm.expect(Number(fila.movimientos_credito)).to.eql(1);",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoCancelarId}}/cancelar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoCancelarId}}",
+            "cancelar"
+          ]
+        },
+        "description": "BDD: Dado un deposito a plazo vigente; cuando se cancela antes del vencimiento; entonces se procesa la cancelacion anticipada y se acredita capital + intereses. El pre-request crea un deposito descartable (montoCancelacion) y guarda su id en depositoCancelarId."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 5 - Obtener plan de ahorro por ID",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: plan de ahorro activo real. COLUMNAS SIN VERIFICAR CONTRA LA BD (ahorros.estado, tomadas de la OpenAPI).",
+              "utils.sqlUna(\"SELECT id FROM ahorros WHERE estado = $1 ORDER BY id LIMIT 1\", [\"activo\"], function (fila) {",
+              "    if (fila) { pm.collectionVariables.set(\"ahorroId\", fila.id); }",
+              "    else { console.warn(\"No se pudo obtener un plan activo por SQL: se usa ahorroId = \" + pm.collectionVariables.get(\"ahorroId\")); }",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Escenario 5: Obtener plan de ahorro por ID",
+              "pm.test('La consulta devuelve el codigo 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('La respuesta tiene formato JSON', function () { pm.response.to.be.json; });",
+              "pm.test('El ID del plan de ahorro es correcto', function () {",
+              "    pm.expect(pm.response.json().data.id).to.eql(Number(pm.variables.get('ahorroId')));",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: la fila de ahorros coincide con la API.",
+              "// COLUMNAS SIN VERIFICAR CONTRA LA BD (ahorros): se usa SELECT * y los nombres vienen de la OpenAPI.",
+              "const resp = pm.response.json().data;",
+              "utils.sqlUna(\"SELECT * FROM ahorros WHERE id = $1\", [Number(pm.variables.get(\"ahorroId\"))], function (fila) {",
+              "    pm.test(\"La BD confirma el plan de ahorro con los mismos datos que la API\", function () {",
+              "        pm.expect(fila, \"no se encontro la fila en la BD\").to.not.be.null;",
+              "        pm.expect(fila.estado).to.eql(resp.estado);",
+              "        pm.expect(utils.centavos(fila.saldo_acumulado)).to.eql(utils.centavos(resp.saldo_acumulado));",
+              "        pm.expect(utils.centavos(fila.meta_monto)).to.eql(utils.centavos(resp.meta_monto));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/ahorros/{{ahorroId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "ahorros",
+            "{{ahorroId}}"
+          ]
+        },
+        "description": "BDD:\nDado que existe un plan de ahorro registrado\nCuando el cliente consulta el plan de ahorro por su ID\nEntonces el sistema devuelve la información del plan solicitado."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 6 - Consultar deposito a plazo inexistente",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: id que seguro no existe (maximo actual + 1000).",
+              "utils.sqlUna(\"SELECT MAX(id) AS max_id FROM depositos\", [], function (fila) {",
+              "    if (fila) { pm.collectionVariables.set(\"depositoInexistenteId\", Number(fila.max_id || 0) + 1000); }",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('La respuesta indica que el recurso no fue encontrado', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('error');",
+              "    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+              "});",
+              "pm.test('La respuesta no devuelve datos de deposito', function () {",
+              "    pm.expect(pm.response.json()).to.not.have.property('data');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: confirma que el id realmente no existe en la BD.",
+              "utils.sqlUna(\"SELECT COUNT(*) AS total FROM depositos WHERE id = $1\", [Number(pm.variables.get(\"depositoInexistenteId\"))], function (fila) {",
+              "    pm.test(\"La BD confirma que el deposito no existe\", function () {",
+              "        pm.expect(fila, \"no se pudo consultar la BD\").to.not.be.null;",
+              "        pm.expect(Number(fila.total)).to.eql(0);",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoInexistenteId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoInexistenteId}}"
+          ]
+        },
+        "description": "BDD: Dado que el cliente esta autenticado; cuando consulta un deposito a plazo que no existe; entonces el sistema responde que el deposito no fue encontrado. Autora: jesescobar."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 7 - Constituir deposito con un plazo no permitido (29 dias, bajo el minimo)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: cuenta activa real con saldo y foto (saldo y depositos) para comparar despues del rechazo.",
+              "utils.cuentaConSaldo(1000, function (cuenta) { if (cuenta) { utils.snapshotCuenta(); } });"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La operacion es rechazada con status 400 (plazo 29)', function () { pm.response.to.have.status(400); });",
+              "pm.test('El error es de validacion', function () {",
+              "    pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: el deposito no es generado y el saldo no cambia.",
+              "utils.verificarSinCambios();"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: plazo no ofrecido por el banco. La API admite plazoDias de 30 a 1095; se prueba 29. Pre-request: cuenta real + foto de la BD. Post-request: la BD no cambio.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"cuentaId\": {{cuentaId}},\n  \"monto\": 1000,\n  \"plazoDias\": {{plazoDiasInvalido}},\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 7b - Constituir deposito con un plazo no permitido (1096 dias, sobre el maximo)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: cuenta activa real con saldo y foto (saldo y depositos) para comparar despues del rechazo.",
+              "utils.cuentaConSaldo(1000, function (cuenta) { if (cuenta) { utils.snapshotCuenta(); } });"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La operacion es rechazada con status 400 (plazo 1096)', function () { pm.response.to.have.status(400); });",
+              "pm.test('El error es de validacion', function () {",
+              "    pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: el deposito no es generado y el saldo no cambia.",
+              "utils.verificarSinCambios();"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: plazo no ofrecido por el banco. Se prueba 1096 (maximo permitido: 1095).",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"cuentaId\": {{cuentaId}},\n  \"monto\": 1000,\n  \"plazoDias\": {{plazoDiasInvalidoAlto}},\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 8 - Constituir deposito por el total del saldo disponible",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Consulta de solo lectura al sandbox SQL (v2). Se declara aca y no en la",
+              "// coleccion para no modificar la configuracion compartida del grupo.",
+              "const sqlSelect = (sql, params) => ({",
+              "    url: pm.variables.get('baseUrl') + '/api/v2/sql/select',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json', 'x-api-key': pm.variables.get('apiKey') },",
+              "    body: { mode: 'raw', raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+              "});",
+              "",
+              "// Precondicion: lee el saldo de la cuenta de prueba y lo usa como monto del",
+              "// deposito. Usa una cuenta propia (cuentaSaldoTotalId) para no vaciar la",
+              "// cuenta que usan los demas escenarios.",
+              "const cuentaSaldoTotalId = pm.collectionVariables.get('cuentaSaldoTotalId');",
+              "if (!cuentaSaldoTotalId) {",
+              "    console.error('Configurar la variable cuentaSaldoTotalId con una cuenta de prueba descartable.');",
+              "} else {",
+              "    pm.sendRequest(sqlSelect('SELECT id, usuario_id, saldo FROM cuentas WHERE id = $1', [Number(cuentaSaldoTotalId)]), function (err, res) {",
+              "        if (err) { console.error('Pre-request SQL check fallo:', err); return; }",
+              "        const cuenta = res.json().data[0];",
+              "        if (!cuenta || Number(cuenta.saldo) <= 0) {",
+              "            console.error('La cuenta de prueba no existe o no tiene saldo disponible.');",
+              "            return;",
+              "        }",
+              "        pm.collectionVariables.set('usuarioSaldoTotalId', cuenta.usuario_id);",
+              "        pm.collectionVariables.set('montoSaldoTotal', Number(cuenta.saldo));",
+              "        console.log('Saldo disponible antes del deposito:', cuenta.saldo);",
+              "    });",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Consulta de solo lectura al sandbox SQL (v2). Se declara aca y no en la",
+              "// coleccion para no modificar la configuracion compartida del grupo.",
+              "const sqlSelect = (sql, params) => ({",
+              "    url: pm.variables.get('baseUrl') + '/api/v2/sql/select',",
+              "    method: 'POST',",
+              "    header: { 'Content-Type': 'application/json', 'x-api-key': pm.variables.get('apiKey') },",
+              "    body: { mode: 'raw', raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+              "});",
+              "",
+              "pm.test('El deposito se registra con status 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('El deposito se registra por el total del saldo disponible', function () {",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(Number(data.monto)).to.eql(Number(pm.collectionVariables.get('montoSaldoTotal')));",
+              "    pm.expect(data.estado).to.eql('activo');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request: relee la BD para confirmar que la cuenta quedo en cero.",
+              "pm.sendRequest(sqlSelect('SELECT saldo FROM cuentas WHERE id = $1', [Number(pm.collectionVariables.get('cuentaSaldoTotalId'))]), function (err, res) {",
+              "    pm.test('La BD confirma que el saldo disponible queda en cero', function () {",
+              "        if (err) throw err;",
+              "        pm.expect(Number(res.json().data[0].saldo)).to.eql(0);",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: Dado que el cliente tiene una cuenta de ahorro activa y el saldo disponible es igual al importe del deposito; cuando constituye el deposito a plazo; entonces el sistema registra el deposito y el saldo disponible queda en cero. ATENCION: deja la cuenta en saldo cero; usar solo una cuenta de prueba descartable en cuentaSaldoTotalId. Autora: jesescobar.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioSaldoTotalId}},\n  \"cuentaId\": {{cuentaSaldoTotalId}},\n  \"monto\": {{montoSaldoTotal}},\n  \"plazoDias\": 30,\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 9 - Deposito con importe menor al minimo permitido",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: cuenta activa real y foto para comparar despues del rechazo (monto = 0, regla no documentada).",
+              "utils.cuentaConSaldo(1, function (cuenta) { if (cuenta) { utils.snapshotCuenta(); } });"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La operacion es rechazada con status 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('El error es de validacion', function () {",
+              "    pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR');",
+              "});",
+              "pm.test('El deposito no es generado', function () {",
+              "    pm.expect(pm.response.json()).to.not.have.property('data');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: el rechazo no modifico la BD.",
+              "utils.verificarSinCambios();"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: Dado una cuenta de ahorro activa; cuando intenta constituir un deposito por debajo del importe minimo; entonces se rechaza. La API exige monto > 0.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"cuentaId\": {{cuentaId}},\n  \"monto\": {{montoInvalido}},\n  \"plazoDias\": 30,\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 10 - Consultar tasas disponibles para depositos a plazo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('La respuesta es un listado de depositos', function () {",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data).to.be.an('array').that.is.not.empty;",
+              "});",
+              "pm.test('Cada deposito informa importe, plazo y tasa', function () {",
+              "    pm.response.json().data.forEach(function (d) {",
+              "        pm.expect(d).to.have.property('monto');",
+              "        pm.expect(d).to.have.property('plazo_dias');",
+              "        pm.expect(d).to.have.property('tasa_anual');",
+              "    });",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: el listado no devuelve mas depositos activos que los que hay en la BD.",
+              "const lista = pm.response.json().data;",
+              "utils.sqlUna(\"SELECT COUNT(*) AS total FROM depositos WHERE estado = 'activo'\", [], function (fila) {",
+              "    pm.test(\"La BD confirma que hay depositos activos y el listado no excede ese total\", function () {",
+              "        pm.expect(fila, \"no se pudo consultar la BD\").to.not.be.null;",
+              "        pm.expect(Number(fila.total)).to.be.above(0);",
+              "        pm.expect(lista.length).to.be.at.most(Number(fila.total));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos?estado=activo",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ],
+          "query": [
+            {
+              "key": "estado",
+              "value": "activo"
+            }
+          ]
+        },
+        "description": "BDD: Dado que existen opciones de depositos a plazo; cuando el cliente consulta las tasas vigentes; entonces ve importes, plazos y tasas."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 11 - Consultar intereses generados",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: elige un deposito real en estado 'activo' (SELECT acotado con LIMIT 1).",
+              "utils.sqlUna(\"SELECT id FROM depositos WHERE estado = $1 ORDER BY id LIMIT 1\", [\"activo\"], function (fila) {",
+              "    if (fila) { pm.collectionVariables.set(\"depositoVigenteId\", fila.id); }",
+              "    else { console.warn(\"No hay depositos 'activo' en la BD: se usa depositoVigenteId = \" + pm.collectionVariables.get(\"depositoVigenteId\")); }",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('La respuesta muestra los intereses generados y proyectados', function () {",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data).to.have.property('interes_generado');",
+              "    pm.expect(data).to.have.property('interes_proyectado');",
+              "    pm.expect(Number(data.interes_generado)).to.be.at.least(0);",
+              "    pm.expect(Number(data.interes_proyectado)).to.be.at.least(0);",
+              "});",
+              "pm.test('El deposito consultado tiene plazo en dias', function () {",
+              "    pm.expect(pm.response.json().data.plazo_dias).to.be.a('number');",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: intereses de la BD = API; el proyectado sigue la formula monto * tasa/100 * plazo/365.",
+              "const resp = pm.response.json().data;",
+              "utils.sqlUna(\"SELECT monto, tasa_anual, plazo_dias, interes_generado FROM depositos WHERE id = $1\",",
+              "    [Number(pm.variables.get(\"depositoVigenteId\"))], function (fila) {",
+              "    pm.test(\"La BD confirma los intereses generados que informa la API\", function () {",
+              "        pm.expect(fila, \"no se encontro la fila en la BD\").to.not.be.null;",
+              "        pm.expect(utils.centavos(fila.interes_generado)).to.eql(utils.centavos(resp.interes_generado));",
+              "    });",
+              "    pm.test(\"El interes proyectado es interes simple sobre el plazo completo\", function () {",
+              "        const esperado = Math.round(Number(fila.monto) * Number(fila.tasa_anual) / 100 * Number(fila.plazo_dias) / 365 * 100);",
+              "        pm.expect(Math.abs(utils.centavos(resp.interes_proyectado) - esperado)).to.be.at.most(1); // tolerancia de redondeo: 1 centavo",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos/{{depositoVigenteId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos",
+            "{{depositoVigenteId}}"
+          ]
+        },
+        "description": "BDD: Dado un deposito a plazo vigente; cuando el cliente consulta su plazo; entonces ve los intereses generados."
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 12 - Constituir deposito con el importe minimo permitido",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request SQL: cuenta activa real con saldo para el importe minimo, y foto de saldo/depositos ANTES.",
+              "utils.cuentaConSaldo(Number(pm.collectionVariables.get(\"montoMinimo\")), function (cuenta) {",
+              "    if (cuenta) { utils.snapshotCuenta(); }",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El status es 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('El deposito queda registrado por el importe minimo', function () {",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data.estado).to.eql('activo');",
+              "    pm.expect(Number(data.monto)).to.eql(Number(pm.variables.get('montoMinimo')));",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: el deposito existe con el monto y plazo enviados; la cuenta se debito.",
+              "const resp = pm.response.json().data;",
+              "utils.sqlUna(\"SELECT d.estado, d.monto, d.plazo_dias, d.cuenta_id, c.saldo, \" +",
+              "    \"(SELECT COUNT(*) FROM depositos x WHERE x.cuenta_id = d.cuenta_id) AS total_depositos \" +",
+              "    \"FROM depositos d JOIN cuentas c ON c.id = d.cuenta_id WHERE d.id = $1\", [Number(resp.id)], function (fila) {",
+              "    pm.test(\"La BD registra el deposito con el monto y plazo enviados\", function () {",
+              "        pm.expect(fila, \"no se encontro la fila en la BD\").to.not.be.null;",
+              "        pm.expect(fila.estado).to.eql(\"activo\");",
+              "        pm.expect(utils.centavos(fila.monto)).to.eql(utils.centavos(pm.collectionVariables.get(\"montoMinimo\")));",
+              "        pm.expect(fila.plazo_dias).to.eql(30);",
+              "        pm.expect(fila.cuenta_id).to.eql(Number(pm.collectionVariables.get(\"cuentaId\")));",
+              "    });",
+              "    pm.test(\"La BD registro exactamente un deposito nuevo y debito la cuenta\", function () {",
+              "        pm.expect(Number(fila.total_depositos)).to.eql(Number(pm.variables.get(\"totalAntes\")) + 1);",
+              "        pm.expect(utils.centavos(fila.saldo)).to.eql(utils.centavos(pm.variables.get(\"saldoAntes\")) - utils.centavos(pm.collectionVariables.get(\"montoMinimo\")));",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/depositos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "depositos"
+          ]
+        },
+        "description": "BDD: Dado que el cliente tiene saldo suficiente; cuando constituye un deposito por el importe minimo; entonces se registra. Escribe en el sandbox.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"cuentaId\": {{cuentaId}},\n  \"monto\": {{montoMinimo}},\n  \"plazoDias\": 30,\n  \"tasaAnual\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 13 - Aportar a un plan de ahorro",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request: plan propio (no se tocan los planes sembrados) y lectura de saldos ANTES de aportar.",
+              "pm.collectionVariables.unset(\"ahorroAportarId\");",
+              "const aporte = Number(pm.collectionVariables.get(\"montoAporte\"));",
+              "utils.cuentaConSaldo(aporte, function (cuenta) {",
+              "    if (!cuenta) { return; }",
+              "    utils.crearPlan(\"ahorroAportarId\", function (plan) {",
+              "        // COLUMNAS SIN VERIFICAR CONTRA LA BD (ahorros): SELECT * y nombres tomados de la OpenAPI.",
+              "        utils.sqlUna(\"SELECT * FROM ahorros WHERE id = $1\", [Number(plan.id)], function (fila) {",
+              "            if (fila) { pm.variables.set(\"acumAntes\", fila.saldo_acumulado); }",
+              "        });",
+              "        utils.sqlUna(\"SELECT saldo FROM cuentas WHERE id = $1\", [Number(cuenta.id)], function (fila) {",
+              "            if (fila) { pm.variables.set(\"saldoAntes\", fila.saldo); }",
+              "        });",
+              "    });",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El aporte se registra con status 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('La respuesta corresponde al plan aportado y suma el aporte', function () {",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get('ahorroAportarId')));",
+              "    pm.expect(utils.centavos(data.saldo_acumulado)).to.eql(utils.centavos(pm.variables.get('acumAntes')) + utils.centavos(pm.collectionVariables.get('montoAporte')));",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: saldo_acumulado sube y la cuenta se debita por el aporte.",
+              "const aporte = utils.centavos(pm.collectionVariables.get(\"montoAporte\"));",
+              "// COLUMNAS SIN VERIFICAR CONTRA LA BD (ahorros): SELECT * y nombres tomados de la OpenAPI.",
+              "utils.sqlUna(\"SELECT * FROM ahorros WHERE id = $1\", [Number(pm.collectionVariables.get(\"ahorroAportarId\"))], function (plan) {",
+              "    pm.test(\"La BD suma el aporte a saldo_acumulado del plan\", function () {",
+              "        pm.expect(plan, \"no se encontro el plan en la BD\").to.not.be.null;",
+              "        pm.expect(utils.centavos(plan.saldo_acumulado)).to.eql(utils.centavos(pm.variables.get(\"acumAntes\")) + aporte);",
+              "        pm.expect(plan.estado).to.be.oneOf([\"activo\", \"completado\"]);",
+              "    });",
+              "});",
+              "utils.sqlUna(\"SELECT saldo FROM cuentas WHERE id = $1\", [Number(pm.collectionVariables.get(\"cuentaId\"))], function (cuenta) {",
+              "    pm.test(\"La BD debita la cuenta por el monto aportado\", function () {",
+              "        pm.expect(cuenta, \"no se encontro la cuenta en la BD\").to.not.be.null;",
+              "        pm.expect(utils.centavos(cuenta.saldo)).to.eql(utils.centavos(pm.variables.get(\"saldoAntes\")) - aporte);",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/ahorros/{{ahorroAportarId}}/aportar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "ahorros",
+            "{{ahorroAportarId}}",
+            "aportar"
+          ]
+        },
+        "description": "Sin escenario en el feature (endpoint documentado). Pre-request: cuenta real + plan de ahorro PROPIO creado por POST /ahorros. Post-request SQL: la cuenta se debita y saldo_acumulado suma el aporte. Escribe en el sandbox.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"monto\": {{montoAporte}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Escenario 14 - Eliminar plan de ahorro (soft-delete)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pre-request: plan propio para eliminar y precondicion en la BD (esta activo).",
+              "pm.collectionVariables.unset(\"ahorroEliminarId\");",
+              "utils.cuentaConSaldo(Number(pm.collectionVariables.get(\"montoAporte\")), function (cuenta) {",
+              "    if (!cuenta) { return; }",
+              "    utils.crearPlan(\"ahorroEliminarId\", function (plan) {",
+              "        // COLUMNAS SIN VERIFICAR CONTRA LA BD (ahorros): SELECT * y nombres tomados de la OpenAPI.",
+              "        utils.sqlUna(\"SELECT * FROM ahorros WHERE id = $1\", [Number(plan.id)], function (fila) {",
+              "            if (fila) { pm.variables.set(\"estadoAntes\", fila.estado); }",
+              "        });",
+              "    });",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La eliminacion responde 204 sin body', function () {",
+              "    pm.response.to.have.status(204);",
+              "    pm.expect(pm.response.text()).to.be.empty;",
+              "});",
+              "pm.test('El tiempo de respuesta es menor a 3000 ms', function () { pm.expect(pm.response.responseTime).to.be.below(3000); });",
+              "",
+              "// Post-request SQL: soft-delete. La fila SIGUE existiendo, con estado/activo actualizados.",
+              "// COLUMNAS SIN VERIFICAR CONTRA LA BD (ahorros): SELECT * y nombres tomados de la OpenAPI.",
+              "utils.sqlUna(\"SELECT * FROM ahorros WHERE id = $1\", [Number(pm.collectionVariables.get(\"ahorroEliminarId\"))], function (fila) {",
+              "    pm.test(\"Precondicion: el plan estaba 'activo' antes de eliminarlo\", function () {",
+              "        pm.expect(pm.variables.get(\"estadoAntes\")).to.eql(\"activo\");",
+              "    });",
+              "    pm.test(\"La BD conserva la fila (soft-delete) con estado 'cancelado'\", function () {",
+              "        pm.expect(fila, \"la fila no deberia desaparecer en un soft-delete\").to.not.be.null;",
+              "        pm.expect(fila.estado).to.eql(\"cancelado\");",
+              "    });",
+              "    pm.test(\"La BD marca el plan como inactivo (activo = false)\", function () {",
+              "        pm.expect(fila, \"no se encontro la fila en la BD\").to.not.be.null;",
+              "        pm.expect(fila).to.have.property(\"activo\");",
+              "        pm.expect(fila.activo).to.eql(false);",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v2/ahorros/{{ahorroEliminarId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v2",
+            "ahorros",
+            "{{ahorroEliminarId}}"
+          ]
+        },
+        "description": "Sin escenario en el feature (endpoint documentado). Pre-request: cuenta real + plan PROPIO creado por POST /ahorros. DELETE es soft-delete (204 sin body): el post-request SQL valida estado/activo, no que la fila desaparezca."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://aiquaa-sandbox-api.vercel.app"
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "depositoVigenteId",
+      "value": "1"
+    },
+    {
+      "key": "depositoVencidoId",
+      "value": "4"
+    },
+    {
+      "key": "usuarioId",
+      "value": "1"
+    },
+    {
+      "key": "cuentaId",
+      "value": "1"
+    },
+    {
+      "key": "ahorroId",
+      "value": "1"
+    },
+    {
+      "key": "depositoInexistenteId",
+      "value": "999999"
+    },
+    {
+      "key": "plazoDiasInvalido",
+      "value": "29"
+    },
+    {
+      "key": "cuentaSaldoTotalId",
+      "value": ""
+    },
+    {
+      "key": "usuarioSaldoTotalId",
+      "value": ""
+    },
+    {
+      "key": "montoSaldoTotal",
+      "value": ""
+    },
+    {
+      "key": "depositosAntesPlazoInvalido",
+      "value": ""
+    },
+    {
+      "key": "montoMinimo",
+      "value": "1"
+    },
+    {
+      "key": "montoInvalido",
+      "value": "0"
+    },
+    {
+      "key": "montoCancelacion",
+      "value": "1000"
+    },
+    {
+      "key": "depositoCancelarId",
+      "value": ""
+    },
+    {
+      "key": "plazoDiasInvalidoAlto",
+      "value": "1096"
+    },
+    {
+      "key": "montoAporte",
+      "value": "100"
+    },
+    {
+      "key": "ahorroAportarId",
+      "value": ""
+    },
+    {
+      "key": "ahorroEliminarId",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Helpers compartidos del patron SQL REST dinamico (docs/TAREA-SQL-REST-DINAMICO.md).",
+          "// Solo SELECT parametrizados y acotados contra POST /api/v2/sql/select.",
+          "// La apiKey se lee con pm.variables.get (environment > coleccion) y NUNCA se imprime.",
+          "if (typeof utils === \"undefined\") {",
+          "  utils = {",
+          "    bodySqlRest: function (sql, params) {",
+          "      return {",
+          "        url: pm.variables.get(\"baseUrl\") + \"/api/v2/sql/select\",",
+          "        method: \"POST\",",
+          "        header: { \"Content-Type\": \"application/json\", \"x-api-key\": pm.variables.get(\"apiKey\") },",
+          "        body: { mode: \"raw\", raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+          "      };",
+          "    },",
+          "    // Los importes numeric llegan como string (\"15899996.00\"): se comparan en centavos enteros.",
+          "    centavos: function (valor) {",
+          "      return Math.round(Number(valor) * 100);",
+          "    },",
+          "    // Ejecuta un SELECT y entrega la primera fila (o null) al callback. Maneja 429 con mensaje claro.",
+          "    sqlUna: function (sql, params, cb) {",
+          "      pm.sendRequest(utils.bodySqlRest(sql, params), function (err, res) {",
+          "        if (err) { console.error(\"SQL REST fallo: \" + err); return cb(null, null); }",
+          "        if (res.code === 429) {",
+          "          console.error(\"Limite de requests excedido (429) en /sql/select: subir --delay-request.\");",
+          "          return cb(null, res);",
+          "        }",
+          "        if (res.code !== 200) {",
+          "          console.error(\"SQL REST respondio HTTP \" + res.code + \": revisar apiKey y la consulta.\");",
+          "          return cb(null, res);",
+          "        }",
+          "        cb((res.json().data || [])[0] || null, res);",
+          "      });",
+          "    },",
+          "    // POST autenticado a la API REST (para crear precondiciones propias).",
+          "    post: function (ruta, payload, cb) {",
+          "      pm.sendRequest({",
+          "        url: pm.variables.get(\"baseUrl\") + ruta,",
+          "        method: \"POST\",",
+          "        header: { \"Content-Type\": \"application/json\", \"x-api-key\": pm.variables.get(\"apiKey\") },",
+          "        body: { mode: \"raw\", raw: JSON.stringify(payload) }",
+          "      }, function (err, res) {",
+          "        if (err) { console.error(\"POST \" + ruta + \" fallo: \" + err); return cb(null); }",
+          "        if (res.code === 429) { console.error(\"Limite de requests excedido (429) en \" + ruta + \": subir --delay-request.\"); }",
+          "        cb(res);",
+          "      });",
+          "    },",
+          "    // Pre-request dinamico: elige una cuenta activa con saldo suficiente y guarda cuentaId/usuarioId.",
+          "    cuentaConSaldo: function (minimo, cb) {",
+          "      utils.sqlUna(",
+          "        \"SELECT id, usuario_id, saldo FROM cuentas WHERE estado = $1 AND saldo >= $2 ORDER BY id LIMIT 1\",",
+          "        [\"activa\", Number(minimo)],",
+          "        function (fila) {",
+          "          if (!fila) { console.error(\"No hay una cuenta activa con saldo >= \" + minimo); return cb(null); }",
+          "          pm.collectionVariables.set(\"cuentaId\", fila.id);",
+          "          pm.collectionVariables.set(\"usuarioId\", fila.usuario_id);",
+          "          cb(fila);",
+          "        }",
+          "      );",
+          "    },",
+          "    // Foto de la cuenta (saldo y cantidad de depositos) para comparar despues de un rechazo.",
+          "    snapshotCuenta: function (cb) {",
+          "      utils.sqlUna(",
+          "        \"SELECT c.saldo, (SELECT COUNT(*) FROM depositos d WHERE d.cuenta_id = c.id) AS total_depositos FROM cuentas c WHERE c.id = $1\",",
+          "        [Number(pm.collectionVariables.get(\"cuentaId\"))],",
+          "        function (fila) {",
+          "          if (fila) {",
+          "            pm.variables.set(\"saldoAntes\", fila.saldo);",
+          "            pm.variables.set(\"totalAntes\", fila.total_depositos);",
+          "          }",
+          "          if (cb) cb(fila);",
+          "        }",
+          "      );",
+          "    },",
+          "    // Post-request de casos negativos: la BD no cambio (ni depositos nuevos ni saldo).",
+          "    verificarSinCambios: function () {",
+          "      utils.sqlUna(",
+          "        \"SELECT c.saldo, (SELECT COUNT(*) FROM depositos d WHERE d.cuenta_id = c.id) AS total_depositos FROM cuentas c WHERE c.id = $1\",",
+          "        [Number(pm.collectionVariables.get(\"cuentaId\"))],",
+          "        function (fila) {",
+          "          pm.test(\"La BD confirma que no se genero ningun deposito nuevo\", function () {",
+          "            pm.expect(fila, \"no se pudo releer la cuenta en la BD\").to.not.be.null;",
+          "            pm.expect(Number(fila.total_depositos)).to.eql(Number(pm.variables.get(\"totalAntes\")));",
+          "          });",
+          "          pm.test(\"El saldo de la cuenta no cambio\", function () {",
+          "            pm.expect(utils.centavos(fila.saldo)).to.eql(utils.centavos(pm.variables.get(\"saldoAntes\")));",
+          "          });",
+          "        }",
+          "      );",
+          "    },",
+          "    // Crea un plan de ahorro propio (no se tocan los planes sembrados) y guarda su id en `variable`.",
+          "    crearPlan: function (variable, cb) {",
+          "      pm.collectionVariables.unset(variable);",
+          "      utils.post(\"/api/v2/ahorros\", {",
+          "        usuarioId: Number(pm.collectionVariables.get(\"usuarioId\")),",
+          "        cuentaId: Number(pm.collectionVariables.get(\"cuentaId\")),",
+          "        nombreMeta: \"Plan QA G05 \" + variable,",
+          "        metaMonto: 1000000,",
+          "        aporteMensual: Number(pm.collectionVariables.get(\"montoAporte\")),",
+          "        tasaAnual: 5",
+          "      }, function (res) {",
+          "        if (!res || res.code !== 201) { console.error(\"No se pudo crear el plan de ahorro propio (HTTP \" + (res && res.code) + \")\"); return; }",
+          "        pm.collectionVariables.set(variable, res.json().data.id);",
+          "        cb(res.json().data);",
+          "      });",
+          "    }",
+          "  };",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Mensajes claros para los fallos de infraestructura mas comunes del sandbox.",
+          "pm.test(\"No se supero el limite de requests (429): si falla, subir --delay-request\", function () {",
+          "    pm.expect(pm.response.code, \"Limite de requests excedido (429)\").to.not.eql(429);",
+          "});",
+          "pm.test(\"La apiKey es valida para esta API (no 401/403)\", function () {",
+          "    pm.expect(pm.response.code, \"apiKey ausente, invalida o de otro curso\").to.not.be.oneOf([401, 403]);",
+          "});"
+        ]
+      }
+    }
+  ]
+}
