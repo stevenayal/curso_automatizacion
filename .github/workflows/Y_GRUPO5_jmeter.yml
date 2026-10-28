@@ -1,0 +1,193 @@
+name: JMeter GRUPO5 (echo + Grafana + PDF)
+
+# Corre el plan P_AIQUAAECHO.jmx en modo headless contra GET /api/perf/echo,
+# captura el dashboard público de Grafana como evidencia, genera el informe PDF
+# con la skill de JMeter y deja el job en rojo si no se cumplen los umbrales.
+
+on:
+  push:
+    branches:
+      - grupo-05/jmeter-ci-jessica
+    paths:
+      - '.github/workflows/Y_GRUPO5_jmeter.yml'
+  workflow_dispatch:
+    inputs:
+      threads:
+        description: Usuarios concurrentes (closed workload)
+        required: false
+        default: '5'
+      requests:
+        description: Total de requests (se reparte entre los usuarios); 0 = hasta cumplir la duración
+        required: false
+        default: '200'
+      duration:
+        description: Duración máxima en segundos
+        required: false
+        default: '120'
+      target_per_min:
+        description: Throughput objetivo total en req/min (rate limit de la ruta = 3000)
+        required: false
+        default: '600'
+      delay_ms:
+        description: Latencia artificial del echo (delayMs, 0-5000)
+        required: false
+        default: '0'
+      monitoring_dashboard_url:
+        description: URL pública del dashboard de Grafana a capturar como evidencia
+        required: false
+        default: https://purplespinach239.grafana.net/public-dashboards/32c376cff7ef437faa3435bd863f5a79
+
+permissions:
+  contents: read
+
+env:
+  # En push no hay inputs, así que se repiten los valores por defecto.
+  THREADS: ${{ inputs.threads || '5' }}
+  REQUESTS: ${{ inputs.requests || '200' }}
+  DURATION: ${{ inputs.duration || '120' }}
+  TARGET_PER_MIN: ${{ inputs.target_per_min || '600' }}
+  DELAY_MS: ${{ inputs.delay_ms || '0' }}
+  MONITORING_DASHBOARD_URL: ${{ inputs.monitoring_dashboard_url || 'https://purplespinach239.grafana.net/public-dashboards/32c376cff7ef437faa3435bd863f5a79' }}
+  RESULTS_DIR: test-results/performance
+  EVIDENCE_IMAGE: test-results/performance/evidence/EVIDENCIA_GRAFANA_GRUPO5.png
+  # Umbrales: error rate máximo (%) y p95 máximo (ms).
+  SLA_ERROR_RATE: '1'
+  SLA_P95_MS: '800'
+
+jobs:
+  performance:
+    name: Carga echo + Grafana + informe PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar JMeter
+        run: |
+          curl --fail --location --silent --show-error https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz -o jmeter.tgz
+          tar -xzf jmeter.tgz
+
+      - name: Ejecutar plan headless
+        # La API key sale del secret API_KEY y se pasa como propiedad de JMeter;
+        # nunca se escribe en el plan, en el .properties ni en los logs.
+        # El Simple Data Writer del plan se redirige a otro archivo para que -l
+        # sea el único JTL canónico.
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          if [ -z "$API_KEY" ]; then echo "::error::Falta el secret API_KEY"; exit 1; fi
+          mkdir -p "$RESULTS_DIR"
+          if [ "${REQUESTS:-0}" -gt 0 ]; then LOOPS=$(( (REQUESTS + THREADS - 1) / THREADS )); else LOOPS=-1; fi
+          echo "LOOPS=$LOOPS" >> "$GITHUB_ENV"
+          echo "threads=$THREADS loops=$LOOPS (~$(( LOOPS * THREADS )) requests, tope $DURATION s)"
+          apache-jmeter-5.6.3/bin/jmeter -n -t tests/performance/plans/P_AIQUAAECHO.jmx \
+            -q tests/performance/properties/sandbox.properties \
+            -JapiKey="$API_KEY" \
+            -Jthreads="$THREADS" -Jloops="$LOOPS" -Jduration="$DURATION" \
+            -JtargetPerMin="$TARGET_PER_MIN" -JdelayMs="$DELAY_MS" \
+            -JjtlFile="$RESULTS_DIR/plan-writer.jtl" \
+            -l "$RESULTS_DIR/R_GRUPO5.jtl" -e -o "$RESULTS_DIR/dashboard"
+
+      - name: Configurar Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            skills/jmeter-skill/reporter/requirements.txt
+            tests/performance/monitoring/requirements.txt
+
+      - name: Instalar dependencias
+        if: always()
+        run: |
+          python -m pip install -r skills/jmeter-skill/reporter/requirements.txt
+          python -m pip install -r tests/performance/monitoring/requirements.txt
+
+      - name: Capturar dashboard de Grafana
+        # Sin continue-on-error: si la captura falla, el job queda rojo. Los
+        # pasos siguientes igual corren (always) para no perder el informe.
+        if: always()
+        run: |
+          python tests/performance/monitoring/capture_dashboard.py \
+            --url "$MONITORING_DASHBOARD_URL" \
+            --output "$EVIDENCE_IMAGE" \
+            --wait-seconds 8 \
+            --height 2400 \
+            --ready-timeout-seconds 180
+
+      - name: Generar informe PDF
+        if: always()
+        run: |
+          EVIDENCE_ARGS=()
+          if [ -f "$EVIDENCE_IMAGE" ]; then
+            EVIDENCE_ARGS=(--evidence-image "$EVIDENCE_IMAGE" \
+              --evidence-label "Dashboard Grafana - Grupo 5" \
+              --evidence-url "$MONITORING_DASHBOARD_URL")
+          fi
+          python skills/jmeter-skill/reporter/jmeter_report.py \
+            --results "$RESULTS_DIR/R_GRUPO5.jtl" \
+            --output "$RESULTS_DIR/INFORME_PERF_GRUPO5.pdf" \
+            --api-name "aiquaa Sandbox API — GET /api/perf/echo" \
+            --perfil carga \
+            --threads "$THREADS" --loops "${LOOPS:--1}" \
+            --sla-error-rate "$SLA_ERROR_RATE" --sla-p95 "$SLA_P95_MS" \
+            --repo-url "${{ github.server_url }}/${{ github.repository }}" \
+            --author "Grupo 5" "${EVIDENCE_ARGS[@]}"
+
+      - name: Evaluar umbrales
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          sys.path.insert(0, "skills/jmeter-skill/reporter")
+          from jmeter_report import get_verdict, parse_jtl
+
+          sla_error = float(os.environ["SLA_ERROR_RATE"])
+          sla_p95 = float(os.environ["SLA_P95_MS"])
+          stats, _, _ = parse_jtl(os.path.join(os.environ["RESULTS_DIR"], "R_GRUPO5.jtl"))
+          verdict, level = get_verdict(stats, sla_error_rate=sla_error, sla_p95=sla_p95)
+
+          rows = [
+              ("Requests", stats["total"]),
+              ("Throughput (req/s)", stats["throughput"]),
+              ("Promedio (ms)", stats["avg"]),
+              (f"P95 (ms) — umbral {sla_p95:g}", stats["p95"]),
+              (f"Error rate (%) — umbral {sla_error:g}", stats["error_rate"]),
+              ("Veredicto", verdict),
+          ]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("### JMeter GRUPO5\n\n| Métrica | Valor |\n|---|---|\n")
+              summary.writelines(f"| {name} | {value} |\n" for name, value in rows)
+
+          print(f"Veredicto: {verdict}")
+          if level != "pass":
+              print(f"::error::Umbrales no cumplidos: {verdict}")
+              sys.exit(1)
+          PY
+
+      - name: Publicar informe PDF (se abre en el navegador)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: test-results/performance/INFORME_PERF_GRUPO5.pdf
+          archive: false
+          if-no-files-found: warn
+
+      - name: Publicar JTL, reporte HTML y evidencias
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jmeter-GRUPO5
+          path: test-results/performance
+          if-no-files-found: warn
+          retention-days: 14
