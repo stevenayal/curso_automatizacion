@@ -24,13 +24,14 @@ export class TransferenciasPage extends BasePage {
   async abrirNueva(): Promise<void> {
     await this.navigate('/v2/transferencias/new');
     await expect(this.page.getByRole('heading', { name: 'Nueva transferencia' })).toBeVisible();
-    await expect(this.cliente.locator('option[value]:not([value=""])').first()).toBeAttached();
+    // Los clientes llegan de la API del sandbox, que a veces tarda más que el timeout por defecto.
+    await expect(this.cliente.locator('option[value]:not([value=""])').first()).toBeAttached({ timeout: 15_000 });
   }
 
   async seleccionarCliente(usuarioId: number): Promise<void> {
     await this.cliente.selectOption(String(usuarioId));
     // Las cuentas llegan después del cambio de cliente: esperar a que haya opciones reales.
-    await expect(this.origen.locator('option[data-saldo]').first()).toBeAttached();
+    await expect(this.origen.locator('option[data-saldo]').first()).toBeAttached({ timeout: 15_000 });
     await expect(this.origen).toBeEnabled();
   }
 
