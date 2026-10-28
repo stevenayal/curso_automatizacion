@@ -1,4 +1,3 @@
-
 import { expect, type Page } from "@playwright/test";
 
 export class CuentasPage {
@@ -6,59 +5,66 @@ export class CuentasPage {
 
   // 1. INICIAR SESION
   async ingresarConCorreoAutorizado(): Promise<void> {
-    // Mismo usuario de prueba por defecto que usa el Grupo 03 (.env.example).
-    const email = process.env.TEST_ADMIN_EMAIL || "admin@aiquaa.com";
+    const email =
+      process.env.TEST_ADMIN_EMAIL || "admin@aiquaa.com";
 
     await this.page.goto(
       "https://aiquaa-sandbox-web.vercel.app/auth/login",
       { waitUntil: "domcontentloaded" }
     );
 
-    // Esperar a que React cargue los campos.
-    await this.page.locator(
-      'input[type="radio"], input[type="email"], input[type="text"]'
-    ).first().waitFor({
-      state: "visible",
-      timeout: 15000
-    });
+    await this.page
+      .locator(
+        'input[type="radio"], input[type="email"], input[type="text"]'
+      )
+      .first()
+      .waitFor({
+        state: "visible",
+        timeout: 15000,
+      });
 
-    // Seleccionar el Curso 1 si aparece.
     if (this.page.url().includes("/curso")) {
-      const curso1 = this.page.locator(
-        'input[type="radio"]'
-      ).first();
+      const curso1 = this.page
+        .locator('input[type="radio"]')
+        .first();
 
       await curso1.check();
 
-      await this.page.getByRole("button", {
-        name: "Continuar",
-        exact: true
-      }).click();
+      await this.page
+        .getByRole("button", {
+          name: "Continuar",
+          exact: true,
+        })
+        .click();
     }
 
-    // Esperar el formulario de correo.
-    const campoEmail = this.page.locator(
-      'input[type="email"], input[type="text"]'
-    ).first();
+    const campoEmail = this.page
+      .locator(
+        'input[type="email"], input[type="text"]'
+      )
+      .first();
 
     await campoEmail.waitFor({
       state: "visible",
-      timeout: 15000
+      timeout: 15000,
     });
 
     await campoEmail.fill(email);
 
-    await this.page.getByRole("button", {
-      name: "Ingresar",
-      exact: true
-    }).click();
+    await this.page
+      .getByRole("button", {
+        name: "Ingresar",
+        exact: true,
+      })
+      .click();
 
-    // Verificar acceso al sistema.
     await expect(
       this.page.getByRole("heading", {
-        name: /Bienvenido/i
+        name: /Bienvenido/i,
       })
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible({
+      timeout: 10000,
+    });
 
     console.log("Inicio de sesion correcto");
   }
@@ -72,7 +78,7 @@ export class CuentasPage {
     await expect(
       this.page.getByRole("heading", {
         name: "Cuentas",
-        exact: true
+        exact: true,
       })
     ).toBeVisible();
 
@@ -90,8 +96,8 @@ export class CuentasPage {
     const activas = filas.filter({
       has: this.page.getByRole("cell", {
         name: "Sí",
-        exact: true
-      })
+        exact: true,
+      }),
     });
 
     await expect(
@@ -105,7 +111,8 @@ export class CuentasPage {
 
   // 4. VALIDAR SALDO Y MONEDA
   async validarSaldoYMoneda(): Promise<void> {
-    const fila = await this.consultarCuentaActiva();
+    const fila =
+      await this.consultarCuentaActiva();
 
     const celdas = fila.locator("td");
 
@@ -128,5 +135,230 @@ export class CuentasPage {
     console.log("Moneda:", moneda);
     console.log("Saldo:", saldo);
     console.log("Validacion correcta");
+  }
+
+  // 5. CONFIGURACION API
+  private readonly apiUrl =
+    process.env.API_URL ||
+    "https://aiquaa-sandbox-api.vercel.app";
+
+  private readonly apiKey =
+    process.env.API_KEY || "";
+
+  ultimoStatus = 0;
+  ultimaRespuesta: any = null;
+  cuentaIdActual = 0;
+
+  // 6. EJECUTAR REQUEST
+  private async ejecutarRequest(
+    metodo:
+      | "GET"
+      | "POST"
+      | "PUT"
+      | "PATCH"
+      | "DELETE",
+    ruta: string,
+    data?: any
+  ): Promise<void> {
+    const response =
+      await this.page.context().request.fetch(
+        `${this.apiUrl}${ruta}`,
+        {
+          method: metodo,
+          headers: {
+            "x-api-key": this.apiKey,
+            "Content-Type":
+              "application/json",
+          },
+          data,
+        }
+      );
+
+    this.ultimoStatus =
+      response.status();
+
+    try {
+      this.ultimaRespuesta =
+        await response.json();
+    } catch {
+      this.ultimaRespuesta = null;
+    }
+
+    console.log(
+      metodo,
+      ruta,
+      "HTTP:",
+      this.ultimoStatus,
+      this.ultimaRespuesta
+    );
+  }
+
+  // 7. LISTAR CUENTAS
+  async listarCuentas(): Promise<void> {
+    await this.ejecutarRequest(
+      "GET",
+      "/api/v2/cuentas"
+    );
+
+    if (
+      this.ultimoStatus === 200 &&
+      Array.isArray(
+        this.ultimaRespuesta?.data
+      ) &&
+      this.ultimaRespuesta.data.length > 0
+    ) {
+      this.cuentaIdActual =
+        this.ultimaRespuesta.data[0].id;
+    }
+  }
+
+  // 8. LISTAR CUENTAS POR ESTADO
+  async listarCuentasPorEstado(
+    estado: string
+  ): Promise<void> {
+    await this.ejecutarRequest(
+      "GET",
+      `/api/v2/cuentas?estado=${encodeURIComponent(
+        estado
+      )}`
+    );
+  }
+
+  // 9. CONSULTAR CUENTA POR ID
+  async consultarCuenta(
+    id: number
+  ): Promise<void> {
+    this.cuentaIdActual = id;
+
+    await this.ejecutarRequest(
+      "GET",
+      `/api/v2/cuentas/${id}`
+    );
+  }
+
+  // 10. ABRIR CUENTA
+  async abrirCuenta(
+    usuarioId: number,
+    tipoCuenta: string,
+    moneda: string
+  ): Promise<void> {
+    await this.ejecutarRequest(
+      "POST",
+      "/api/v2/cuentas",
+      {
+        usuarioId,
+        tipoCuenta,
+        moneda,
+      }
+    );
+
+    if (
+      this.ultimoStatus === 201 &&
+      this.ultimaRespuesta?.data?.id
+    ) {
+      this.cuentaIdActual =
+        this.ultimaRespuesta.data.id;
+    }
+  }
+
+  // 11. MODIFICAR CUENTA
+  async modificarCuenta(
+    id: number,
+    tipoCuenta: string,
+    moneda?: string
+  ): Promise<void> {
+    const body: any = {
+      tipoCuenta,
+    };
+
+    if (moneda !== undefined) {
+      body.moneda = moneda;
+    }
+
+    await this.ejecutarRequest(
+      "PUT",
+      `/api/v2/cuentas/${id}`,
+      body
+    );
+  }
+
+  // 12. ELIMINAR CUENTA
+  async eliminarCuenta(
+    id: number
+  ): Promise<void> {
+    await this.ejecutarRequest(
+      "DELETE",
+      `/api/v2/cuentas/${id}`
+    );
+  }
+
+  // 13. CAMBIAR ESTADO
+  async cambiarEstado(
+    id: number,
+    estado: string
+  ): Promise<void> {
+    await this.ejecutarRequest(
+      "PATCH",
+      `/api/v2/cuentas/${id}/estado`,
+      {
+        estado,
+      }
+    );
+  }
+
+  // 14. CONSULTAR SALDO
+  async consultarSaldo(
+    id: number
+  ): Promise<void> {
+    await this.ejecutarRequest(
+      "GET",
+      `/api/v2/cuentas/${id}/saldo`
+    );
+  }
+
+  // 15. CONSULTAR MOVIMIENTOS
+  async consultarMovimientos(
+    id: number
+  ): Promise<void> {
+    await this.ejecutarRequest(
+      "GET",
+      `/api/v2/cuentas/${id}/movimientos`
+    );
+  }
+
+  // 16. REGISTRAR MOVIMIENTO
+  async registrarMovimiento(
+    id: number,
+    tipo: string,
+    monto: number | string
+  ): Promise<void> {
+    await this.ejecutarRequest(
+      "POST",
+      `/api/v2/cuentas/${id}/movimientos`,
+      {
+        tipo,
+        monto,
+        descripcion:
+          "Prueba automatizada Grupo 1",
+      }
+    );
+  }
+
+  // 17. VALIDAR CODIGO HTTP
+  validarStatus(
+    esperado: number
+  ): void {
+    expect(
+      this.ultimoStatus
+    ).toBe(esperado);
+  }
+
+  // 18. VALIDAR CODIGO DE ERROR
+  validarError(
+    errorEsperado: string
+  ): void {
+    expect(
+      this.ultimaRespuesta?.error?.code
+    ).toBe(errorEsperado);
   }
 }
