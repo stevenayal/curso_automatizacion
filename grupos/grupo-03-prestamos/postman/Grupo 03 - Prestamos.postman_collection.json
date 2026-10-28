@@ -148,23 +148,712 @@
       "item": [
         {
           "name": "GET detalle de prestamo pagado",
-          "event": [{
-            "listen": "prerequest",
-            "script": {"type": "text/javascript", "exec": ["// El sandbox se resetea y los IDs cambian: se toma un prestamo pagado del listado REST,\n// que solo devuelve los prestamos visibles para la api_key (SQL ve tambien los ajenos).\n// Si no hay ninguno, se salta la request; si el listado falla, se usa el ID por defecto.\npm.sendRequest({\n    url: pm.variables.get('base_url') + '/api/v2/prestamos',\n    method: 'GET',\n    header: { 'x-api-key': pm.variables.get('api_key') }\n}, function (err, res) {\n    if (err || res.code !== 200) {\n        console.warn('No se pudo listar prestamos (' + (err || 'HTTP ' + res.code) + '): se usa el ID por defecto.');\n        return;\n    }\n    var data = res.json().data;\n    var lista = Array.isArray(data) ? data : ((data && data.items) || []);\n    var pagado = lista.filter(function (p) { return p.estado === 'pagado'; })[0];\n    if (pagado) { pm.collectionVariables.set('prestamo_pagado_id', String(pagado.id)); }\n    else {\n        // Sin precondicion no hay nada que verificar: se salta la request (queda skipped, no passed).\n        console.warn('SKIP: no hay prestamos pagados visibles para la api_key (' + lista.length + ' en total).');\n        pm.execution.skipRequest();\n    }\n});"]}
-          }, {
-            "listen": "test",
-            "script": {"type": "text/javascript", "exec": ["pm.test('Responde 200', function () { pm.response.to.have.status(200); });\npm.test('El prestamo no tiene saldo pendiente', function () {\n    var prestamo = pm.response.json().data;\n    pm.expect(prestamo.id).to.eql(Number(pm.variables.get('prestamo_pagado_id')));\n    pm.expect(prestamo.estado).to.eql('pagado');\n    pm.expect(Number(prestamo.saldo_pendiente)).to.eql(0);\n});"]}
-          }],
-          "request": {"method": "GET", "header": [{"key": "x-api-key", "value": "{{api_key}}"}], "url": "{{base_url}}/api/v2/prestamos/{{prestamo_pagado_id}}"},
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// El sandbox se resetea y los IDs cambian: se toma un prestamo pagado del listado REST,\n// que solo devuelve los prestamos visibles para la api_key (SQL ve tambien los ajenos).\n// Si no hay ninguno, se salta la request; si el listado falla, se usa el ID por defecto.\npm.sendRequest({\n    url: pm.variables.get('base_url') + '/api/v2/prestamos',\n    method: 'GET',\n    header: { 'x-api-key': pm.variables.get('api_key') }\n}, function (err, res) {\n    if (err || res.code !== 200) {\n        console.warn('No se pudo listar prestamos (' + (err || 'HTTP ' + res.code) + '): se usa el ID por defecto.');\n        return;\n    }\n    var data = res.json().data;\n    var lista = Array.isArray(data) ? data : ((data && data.items) || []);\n    var pagado = lista.filter(function (p) { return p.estado === 'pagado'; })[0];\n    if (pagado) { pm.collectionVariables.set('prestamo_pagado_id', String(pagado.id)); }\n    else {\n        // Sin precondicion no hay nada que verificar: se salta la request (queda skipped, no passed).\n        console.warn('SKIP: no hay prestamos pagados visibles para la api_key (' + lista.length + ' en total).');\n        pm.execution.skipRequest();\n    }\n});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200', function () { pm.response.to.have.status(200); });\npm.test('El prestamo no tiene saldo pendiente', function () {\n    var prestamo = pm.response.json().data;\n    pm.expect(prestamo.id).to.eql(Number(pm.variables.get('prestamo_pagado_id')));\n    pm.expect(prestamo.estado).to.eql('pagado');\n    pm.expect(Number(prestamo.saldo_pendiente)).to.eql(0);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/prestamos/{{prestamo_pagado_id}}"
+          },
           "response": []
         },
         {
           "name": "GET prestamo inexistente devuelve 404",
-          "event": [{
-            "listen": "test",
-            "script": {"type": "text/javascript", "exec": ["pm.test('Responde 404', function () { pm.response.to.have.status(404); });\npm.test('Informa el codigo NOT_FOUND', function () {\n    var error = pm.response.json().error;\n    pm.expect(error.code).to.eql('NOT_FOUND');\n});"]}
-          }],
-          "request": {"method": "GET", "header": [{"key": "x-api-key", "value": "{{api_key}}"}], "url": "{{base_url}}/api/v2/prestamos/{{prestamo_inexistente_id}}"},
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 404', function () { pm.response.to.have.status(404); });\npm.test('Informa el codigo NOT_FOUND', function () {\n    var error = pm.response.json().error;\n    pm.expect(error.code).to.eql('NOT_FOUND');\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/prestamos/{{prestamo_inexistente_id}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Pago de cuota con validacion SQL (pre/post)",
+      "description": "Patron SQL REST dinamico (Tarea 3.0). Cada request valida la precondicion en la BD con utils.bodySqlRest (pre-request) y relee la BD despues de la operacion (tests). Crea su propio usuario y prestamo para no modificar datos compartidos del sandbox.",
+      "item": [
+        {
+          "name": "5.0 Preparacion - crear usuario de prueba",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Datos unicos por corrida para no chocar con el 409 de email/documento duplicado.",
+                  "const sufijo = Date.now();",
+                  "pm.collectionVariables.set('usuario_email', 'g03.prestamos.' + sufijo + '@test.com');",
+                  "pm.collectionVariables.set('usuario_documento', 'G03' + sufijo);",
+                  "pm.collectionVariables.unset('usuario_flujo_id');",
+                  "pm.collectionVariables.unset('prestamo_flujo_id');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const usuario = pm.response.json().data;",
+                  "pm.collectionVariables.set('usuario_flujo_id', usuario.id);",
+                  "",
+                  "// Post-request: confirma en la BD que el usuario quedo insertado y activo.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT id, email, activo FROM usuarios WHERE id = $1', [usuario.id]",
+                  "), (err, res) => {",
+                  "  pm.test('BD: el usuario existe y esta activo', () => {",
+                  "    const fila = utils.filas(err, res)[0];",
+                  "    pm.expect(fila, 'no se encontro el usuario en la BD').to.not.be.undefined;",
+                  "    pm.expect(fila.email).to.eql(pm.collectionVariables.get('usuario_email'));",
+                  "    pm.expect(fila.activo).to.be.true;",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/usuarios",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Grupo 03 Prestamos QA\",\n  \"email\": \"{{usuario_email}}\",\n  \"documentoTipo\": \"CI\",\n  \"documentoNumero\": \"{{usuario_documento}}\",\n  \"telefono\": \"0981000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.1 Solicitar prestamo (INSERT + validacion SQL)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('usuario_flujo_id')) {",
+                  "  console.warn('SKIP: no se pudo crear el usuario de prueba.');",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "// Precondicion en BD: el usuario recien creado no tiene prestamos.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT COUNT(*) AS total FROM prestamos WHERE usuario_id = $1',",
+                  "  [Number(pm.collectionVariables.get('usuario_flujo_id'))]",
+                  "), (err, res) => {",
+                  "  const total = Number(utils.filas(err, res)[0].total);",
+                  "  pm.collectionVariables.set('prestamos_usuario_antes', total);",
+                  "  console.log('Prestamos del usuario antes del POST:', total);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const prestamo = pm.response.json().data;",
+                  "pm.test('El prestamo nace en estado solicitado', () => {",
+                  "  pm.expect(prestamo.estado).to.eql('solicitado');",
+                  "});",
+                  "pm.collectionVariables.set('prestamo_flujo_id', prestamo.id);",
+                  "",
+                  "// Post-request: relee la fila y confirma que el INSERT persistio con los datos enviados.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT id, usuario_id, monto_solicitado, plazo_meses, estado FROM prestamos WHERE id = $1',",
+                  "  [prestamo.id]",
+                  "), (err, res) => {",
+                  "  pm.test('BD: el prestamo existe en estado solicitado con los datos enviados', () => {",
+                  "    const fila = utils.filas(err, res)[0];",
+                  "    pm.expect(fila, 'no se encontro el prestamo en la BD').to.not.be.undefined;",
+                  "    pm.expect(fila.estado).to.eql('solicitado');",
+                  "    pm.expect(Number(fila.usuario_id)).to.eql(Number(pm.collectionVariables.get('usuario_flujo_id')));",
+                  "    pm.expect(Number(fila.monto_solicitado)).to.eql(Number(pm.collectionVariables.get('monto_solicitado')));",
+                  "    pm.expect(Number(fila.plazo_meses)).to.eql(Number(pm.collectionVariables.get('plazo_meses')));",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/prestamos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuario_flujo_id}},\n  \"montoSolicitado\": {{monto_solicitado}},\n  \"tasaInteres\": {{tasa_interes}},\n  \"plazoMeses\": {{plazo_meses}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 Solicitar prestamo - monto negativo (negativo, COUNT sin cambios)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('usuario_flujo_id')) { pm.execution.skipRequest(); }",
+                  "// Caso negativo: se rompe UNA sola variable, el resto del body queda en su default.",
+                  "pm.collectionVariables.set('monto_solicitado', -500);",
+                  "",
+                  "// Guarda cuantos prestamos tiene el usuario ANTES del intento.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT COUNT(*) AS total FROM prestamos WHERE usuario_id = $1',",
+                  "  [Number(pm.collectionVariables.get('usuario_flujo_id'))]",
+                  "), (err, res) => {",
+                  "  pm.variables.set('total_antes', Number(utils.filas(err, res)[0].total));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 (monto negativo rechazado)', () => pm.response.to.have.status(400));",
+                  "pm.test('La respuesta trae error.code y error.message', () => {",
+                  "  const error = pm.response.json().error;",
+                  "  pm.expect(error.code).to.be.a('string').and.not.empty;",
+                  "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "// Post-request: la validacion freno el INSERT, el conteo no cambio.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT COUNT(*) AS total FROM prestamos WHERE usuario_id = $1',",
+                  "  [Number(pm.collectionVariables.get('usuario_flujo_id'))]",
+                  "), (err, res) => {",
+                  "  pm.test('BD: no se inserto ningun prestamo', () => {",
+                  "    const despues = Number(utils.filas(err, res)[0].total);",
+                  "    pm.expect(despues).to.eql(Number(pm.variables.get('total_antes')));",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/prestamos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuario_flujo_id}},\n  \"montoSolicitado\": {{monto_solicitado}},\n  \"tasaInteres\": {{tasa_interes}},\n  \"plazoMeses\": {{plazo_meses}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 Aprobar prestamo (UPDATE estado + cuotas generadas)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('prestamo_flujo_id')) {",
+                  "  console.warn('SKIP: no hay prestamo creado en este run (fallo un paso anterior).');",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "// Precondicion en BD: el prestamo esta en 'solicitado' y todavia no tiene cuotas.",
+                  "const id = Number(pm.collectionVariables.get('prestamo_flujo_id'));",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  \"SELECT p.estado, (SELECT COUNT(*) FROM cuotas_prestamo c WHERE c.prestamo_id = p.id) AS cuotas \" +",
+                  "  \"FROM prestamos p WHERE p.id = $1\", [id]",
+                  "), (err, res) => {",
+                  "  const fila = utils.filas(err, res)[0];",
+                  "  console.log('Antes de aprobar -> estado:', fila.estado, '| cuotas:', fila.cuotas);",
+                  "  if (fila.estado !== 'solicitado') {",
+                  "    console.warn('SKIP: el prestamo no esta en solicitado (' + fila.estado + ').');",
+                  "    pm.execution.skipRequest();",
+                  "  }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('La respuesta muestra el prestamo aprobado', () => {",
+                  "  pm.expect(pm.response.json().data.estado).to.eql('aprobado');",
+                  "});",
+                  "",
+                  "const id = Number(pm.collectionVariables.get('prestamo_flujo_id'));",
+                  "const monto = Number(pm.collectionVariables.get('monto_solicitado'));",
+                  "const tasa = Number(pm.collectionVariables.get('tasa_interes'));",
+                  "const plazo = Number(pm.collectionVariables.get('plazo_meses'));",
+                  "",
+                  "// Post-request 1: el UPDATE de estado quedo en la BD.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT estado, saldo_pendiente FROM prestamos WHERE id = $1', [id]",
+                  "), (err, res) => {",
+                  "  pm.test('BD: prestamo en estado aprobado con saldo pendiente > 0', () => {",
+                  "    const fila = utils.filas(err, res)[0];",
+                  "    pm.expect(fila.estado).to.eql('aprobado');",
+                  "    pm.expect(Number(fila.saldo_pendiente)).to.be.above(0);",
+                  "  });",
+                  "});",
+                  "",
+                  "// Post-request 2: se generaron tantas cuotas pendientes como meses de plazo,",
+                  "// con monto = monto * (1 + tasa/100) / plazo (regla de negocio del sandbox).",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT numero_cuota, monto, estado, fecha_pago FROM cuotas_prestamo ' +",
+                  "  'WHERE prestamo_id = $1 ORDER BY numero_cuota', [id]",
+                  "), (err, res) => {",
+                  "  const cuotas = utils.filas(err, res);",
+                  "  pm.test('BD: se generaron ' + plazo + ' cuotas', () => {",
+                  "    pm.expect(cuotas).to.have.lengthOf(plazo);",
+                  "  });",
+                  "  pm.test('BD: todas las cuotas nacen pendientes y sin fecha de pago', () => {",
+                  "    cuotas.forEach(c => {",
+                  "      pm.expect(c.estado).to.eql('pendiente');",
+                  "      pm.expect(c.fecha_pago).to.be.null;",
+                  "    });",
+                  "  });",
+                  "  pm.test('BD: monto de la cuota 1 = monto * (1 + tasa/100) / plazo', () => {",
+                  "    const esperado = monto * (1 + tasa / 100) / plazo;",
+                  "    pm.expect(Number(cuotas[0].monto)).to.be.closeTo(esperado, 1);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/prestamos/{{prestamo_flujo_id}}/aprobar"
+          },
+          "response": []
+        },
+        {
+          "name": "5.4 Pagar cuota 1 (UPDATE cuota + saldo)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('prestamo_flujo_id')) {",
+                  "  console.warn('SKIP: no hay prestamo creado en este run (fallo un paso anterior).');",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "// Foto de la BD ANTES del pago: estado de la cuota y saldo del prestamo.",
+                  "const id = Number(pm.collectionVariables.get('prestamo_flujo_id'));",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  \"SELECT p.saldo_pendiente, \" +",
+                  "  \"(SELECT COUNT(*) FROM cuotas_prestamo c WHERE c.prestamo_id = p.id AND c.estado = 'pagada') AS pagadas \" +",
+                  "  \"FROM prestamos p WHERE p.id = $1\", [id]",
+                  "), (err, res) => {",
+                  "  const fila = utils.filas(err, res)[0];",
+                  "  pm.variables.set('saldo_antes', Number(fila.saldo_pendiente));",
+                  "  pm.variables.set('pagadas_antes', Number(fila.pagadas));",
+                  "  console.log('Antes del pago -> saldo:', fila.saldo_pendiente, '| cuotas pagadas:', fila.pagadas);",
+                  "});",
+                  "",
+                  "// Precondicion: la cuota a pagar existe y esta pendiente.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT monto, estado FROM cuotas_prestamo WHERE prestamo_id = $1 AND numero_cuota = $2',",
+                  "  [id, Number(pm.collectionVariables.get('numero_cuota'))]",
+                  "), (err, res) => {",
+                  "  const cuota = utils.filas(err, res)[0];",
+                  "  if (!cuota || cuota.estado !== 'pendiente') {",
+                  "    console.warn('SKIP: la cuota no existe o no esta pendiente.');",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  pm.variables.set('monto_cuota', Number(cuota.monto));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const id = Number(pm.collectionVariables.get('prestamo_flujo_id'));",
+                  "const numero = Number(pm.collectionVariables.get('numero_cuota'));",
+                  "",
+                  "// Post-request 1: la cuota quedo pagada y con fecha de pago.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT estado, fecha_pago FROM cuotas_prestamo WHERE prestamo_id = $1 AND numero_cuota = $2',",
+                  "  [id, numero]",
+                  "), (err, res) => {",
+                  "  pm.test('BD: la cuota ' + numero + ' quedo pagada con fecha_pago', () => {",
+                  "    const cuota = utils.filas(err, res)[0];",
+                  "    pm.expect(cuota.estado).to.eql('pagada');",
+                  "    pm.expect(cuota.fecha_pago).to.not.be.null;",
+                  "  });",
+                  "});",
+                  "",
+                  "// Post-request 2: el saldo del prestamo bajo exactamente el monto de la cuota.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT saldo_pendiente, estado FROM prestamos WHERE id = $1', [id]",
+                  "), (err, res) => {",
+                  "  pm.test('BD: saldo_pendiente = saldo anterior - monto de la cuota', () => {",
+                  "    const fila = utils.filas(err, res)[0];",
+                  "    const esperado = Number(pm.variables.get('saldo_antes')) - Number(pm.variables.get('monto_cuota'));",
+                  "    pm.expect(Number(fila.saldo_pendiente)).to.be.closeTo(esperado, 1);",
+                  "    pm.expect(fila.estado).to.eql('aprobado');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/prestamos/{{prestamo_flujo_id}}/cuotas/{{numero_cuota}}/pagar",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.5 Pagar cuota inexistente (negativo, BD sin cambios)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Caso negativo: se rompe SOLO el numero de cuota (el prestamo tiene 6).",
+                  "pm.collectionVariables.set('numero_cuota', 99);",
+                  "",
+                  "if (!pm.collectionVariables.get('prestamo_flujo_id')) {",
+                  "  console.warn('SKIP: no hay prestamo creado en este run (fallo un paso anterior).');",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "// Foto de la BD ANTES del pago: estado de la cuota y saldo del prestamo.",
+                  "const id = Number(pm.collectionVariables.get('prestamo_flujo_id'));",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  \"SELECT p.saldo_pendiente, \" +",
+                  "  \"(SELECT COUNT(*) FROM cuotas_prestamo c WHERE c.prestamo_id = p.id AND c.estado = 'pagada') AS pagadas \" +",
+                  "  \"FROM prestamos p WHERE p.id = $1\", [id]",
+                  "), (err, res) => {",
+                  "  const fila = utils.filas(err, res)[0];",
+                  "  pm.variables.set('saldo_antes', Number(fila.saldo_pendiente));",
+                  "  pm.variables.set('pagadas_antes', Number(fila.pagadas));",
+                  "  console.log('Antes del pago -> saldo:', fila.saldo_pendiente, '| cuotas pagadas:', fila.pagadas);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cuota inexistente: responde 404', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([404]);",
+                  "});",
+                  "pm.test('La respuesta trae error.code y error.message', () => {",
+                  "  const error = pm.response.json().error;",
+                  "  pm.expect(error.code).to.be.a('string').and.not.empty;",
+                  "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "// Post-request: la BD no cambio (mismo saldo, mismas cuotas pagadas).",
+                  "const id = Number(pm.collectionVariables.get('prestamo_flujo_id'));",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  \"SELECT p.saldo_pendiente, \" +",
+                  "  \"(SELECT COUNT(*) FROM cuotas_prestamo c WHERE c.prestamo_id = p.id AND c.estado = 'pagada') AS pagadas \" +",
+                  "  \"FROM prestamos p WHERE p.id = $1\", [id]",
+                  "), (err, res) => {",
+                  "  const fila = utils.filas(err, res)[0];",
+                  "  pm.test('BD: el saldo pendiente no cambio', () => {",
+                  "    pm.expect(Number(fila.saldo_pendiente)).to.eql(Number(pm.variables.get('saldo_antes')));",
+                  "  });",
+                  "  pm.test('BD: la cantidad de cuotas pagadas no cambio', () => {",
+                  "    pm.expect(Number(fila.pagadas)).to.eql(Number(pm.variables.get('pagadas_antes')));",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/prestamos/{{prestamo_flujo_id}}/cuotas/{{numero_cuota}}/pagar",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.6 Pagar cuota ya pagada (negativo, sin doble cobro)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('prestamo_flujo_id')) {",
+                  "  console.warn('SKIP: no hay prestamo creado en este run (fallo un paso anterior).');",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "// Foto de la BD ANTES del pago: estado de la cuota y saldo del prestamo.",
+                  "const id = Number(pm.collectionVariables.get('prestamo_flujo_id'));",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  \"SELECT p.saldo_pendiente, \" +",
+                  "  \"(SELECT COUNT(*) FROM cuotas_prestamo c WHERE c.prestamo_id = p.id AND c.estado = 'pagada') AS pagadas \" +",
+                  "  \"FROM prestamos p WHERE p.id = $1\", [id]",
+                  "), (err, res) => {",
+                  "  const fila = utils.filas(err, res)[0];",
+                  "  pm.variables.set('saldo_antes', Number(fila.saldo_pendiente));",
+                  "  pm.variables.set('pagadas_antes', Number(fila.pagadas));",
+                  "  console.log('Antes del pago -> saldo:', fila.saldo_pendiente, '| cuotas pagadas:', fila.pagadas);",
+                  "});",
+                  "",
+                  "// Precondicion: la cuota 1 ya quedo pagada en el paso 5.4.",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  'SELECT estado FROM cuotas_prestamo WHERE prestamo_id = $1 AND numero_cuota = 1', [id]",
+                  "), (err, res) => {",
+                  "  const cuota = utils.filas(err, res)[0];",
+                  "  if (!cuota || cuota.estado !== 'pagada') {",
+                  "    console.warn('SKIP: la cuota 1 no esta pagada, no hay doble pago que probar.');",
+                  "    pm.execution.skipRequest();",
+                  "  }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cuota ya pagada: responde 400 o 409', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400, 409]);",
+                  "});",
+                  "pm.test('La respuesta trae error.code y error.message', () => {",
+                  "  const error = pm.response.json().error;",
+                  "  pm.expect(error.code).to.be.a('string').and.not.empty;",
+                  "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "// Post-request: la BD no cambio (mismo saldo, mismas cuotas pagadas).",
+                  "const id = Number(pm.collectionVariables.get('prestamo_flujo_id'));",
+                  "pm.sendRequest(utils.bodySqlRest(",
+                  "  \"SELECT p.saldo_pendiente, \" +",
+                  "  \"(SELECT COUNT(*) FROM cuotas_prestamo c WHERE c.prestamo_id = p.id AND c.estado = 'pagada') AS pagadas \" +",
+                  "  \"FROM prestamos p WHERE p.id = $1\", [id]",
+                  "), (err, res) => {",
+                  "  const fila = utils.filas(err, res)[0];",
+                  "  pm.test('BD: el saldo pendiente no cambio', () => {",
+                  "    pm.expect(Number(fila.saldo_pendiente)).to.eql(Number(pm.variables.get('saldo_antes')));",
+                  "  });",
+                  "  pm.test('BD: la cantidad de cuotas pagadas no cambio', () => {",
+                  "    pm.expect(Number(fila.pagadas)).to.eql(Number(pm.variables.get('pagadas_antes')));",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/prestamos/{{prestamo_flujo_id}}/cuotas/{{numero_cuota}}/pagar",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.7 Limpieza - eliminar usuario de prueba",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('usuario_flujo_id')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// El prestamo queda aprobado con saldo, asi que la API puede negar el borrado (409).",
+                  "pm.test('Status 204 o 409 (usuario con prestamo vigente)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 204, 409]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/usuarios/{{usuario_flujo_id}}"
+          },
           "response": []
         }
       ]
@@ -190,9 +879,99 @@
       "key": "base_url",
       "value": ""
     },
-    {"key": "prestamo_mora_id", "value": "4"},
-    {"key": "prestamo_vigente_id", "value": "2"},
-    {"key": "prestamo_pagado_id", "value": "6"},
-    {"key": "prestamo_inexistente_id", "value": "999999"}
+    {
+      "key": "prestamo_mora_id",
+      "value": "4"
+    },
+    {
+      "key": "prestamo_vigente_id",
+      "value": "2"
+    },
+    {
+      "key": "prestamo_pagado_id",
+      "value": "6"
+    },
+    {
+      "key": "prestamo_inexistente_id",
+      "value": "999999"
+    },
+    {
+      "key": "monto_solicitado",
+      "value": ""
+    },
+    {
+      "key": "tasa_interes",
+      "value": ""
+    },
+    {
+      "key": "plazo_meses",
+      "value": ""
+    },
+    {
+      "key": "numero_cuota",
+      "value": ""
+    },
+    {
+      "key": "usuario_email",
+      "value": ""
+    },
+    {
+      "key": "usuario_documento",
+      "value": ""
+    },
+    {
+      "key": "usuario_flujo_id",
+      "value": ""
+    },
+    {
+      "key": "prestamo_flujo_id",
+      "value": ""
+    },
+    {
+      "key": "prestamos_usuario_antes",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Pre-request Script DE LA COLECCION: corre antes de CADA request.",
+          "// Aca se declara UNA sola vez el helper para consultar la BD y se",
+          "// resetean los campos del body que algun caso necesita variar.",
+          "",
+          "// 1) Helper reusable: arma el request a /api/v2/sql/select (solo lectura).",
+          "//    Uso: pm.sendRequest(utils.bodySqlRest('SELECT ... WHERE id = $1', [id]), cb)",
+          "utils = {",
+          "  bodySqlRest: function (sql, params) {",
+          "    return {",
+          "      url: pm.variables.get('base_url') + '/api/v2/sql/select',",
+          "      method: 'POST',",
+          "      header: {",
+          "        'Content-Type': 'application/json',",
+          "        'x-api-key': pm.variables.get('api_key')",
+          "      },",
+          "      body: { mode: 'raw', raw: JSON.stringify({ sql: sql, params: params || [] }) }",
+          "    };",
+          "  },",
+          "  // Devuelve las filas de una respuesta SQL o lanza un error legible.",
+          "  filas: function (err, res) {",
+          "    if (err) { throw err; }",
+          "    if (res.code !== 200) { throw new Error('SQL respondio ' + res.code + ': ' + res.text()); }",
+          "    return res.json().data || [];",
+          "  }",
+          "};",
+          "",
+          "// 2) Valores por defecto de los campos variables del body. Cada request",
+          "//    negativo sobreescribe SOLO la variable que necesita romper.",
+          "pm.collectionVariables.set('monto_solicitado', 1200000);",
+          "pm.collectionVariables.set('tasa_interes', 12);",
+          "pm.collectionVariables.set('plazo_meses', 6);",
+          "pm.collectionVariables.set('numero_cuota', 1);"
+        ]
+      }
+    }
   ]
 }

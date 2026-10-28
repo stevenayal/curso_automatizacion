@@ -56,14 +56,37 @@ Modelo de datos confirmado contra la API real:
 | El cliente consulta el saldo de un préstamo vigente | `GET /api/v2/prestamos/{id}` | `prestamo_id=2` (estado `aprobado`) | Devuelve `saldo_pendiente` > 0 y datos del préstamo |
 | Consulta de un préstamo de otro cliente | `GET /api/v2/prestamos/{id}` | por definir (pendiente de implementar por otro integrante) | por definir |
 | Préstamo con todas las cuotas pagadas | `GET /api/v2/prestamos/{id}` | `prestamo_id=6` (estado `pagado`, `saldo_pendiente` = "0.00") | `saldo_pendiente` = 0 y `estado` = `pagado` |
+| Solicitud de préstamo (happy path) | `POST /api/v2/prestamos` | usuario creado en el run, `montoSolicitado=1200000`, `tasaInteres=12`, `plazoMeses=6` | `201`, estado `solicitado`; la BD confirma la fila insertada |
+| Solicitud con monto inválido (negativo) | `POST /api/v2/prestamos` | `montoSolicitado=-500` (única variable sobreescrita) | `400`; `COUNT(*)` de préstamos del usuario sin cambios |
+| Aprobación genera el cronograma | `POST /api/v2/prestamos/{id}/aprobar` | préstamo del run en `solicitado` | `200`; BD: estado `aprobado`, 6 cuotas `pendiente`, cuota = monto × (1 + tasa/100) / plazo |
+| Pago de una cuota pendiente | `POST /api/v2/prestamos/{id}/cuotas/1/pagar` | cuota 1 en `pendiente` | `200`; BD: cuota `pagada` con `fecha_pago`, `saldo_pendiente` baja el monto de la cuota |
+| Pago de cuota inexistente (negativo) | `POST /api/v2/prestamos/{id}/cuotas/99/pagar` | `numero_cuota=99` (única variable sobreescrita) | `404`; saldo y cuotas pagadas sin cambios |
+| Doble pago de la misma cuota (edge case) | `POST /api/v2/prestamos/{id}/cuotas/1/pagar` | cuota 1 ya `pagada` | `400`/`409`; saldo y cuotas pagadas sin cambios (no hay doble cobro) |
 
 Colección Postman: [`postman/Grupo 03 - Prestamos.postman_collection.json`](./postman/Grupo%2003%20-%20Prestamos.postman_collection.json)
 
+## Patrón SQL REST dinámico (Tarea 3.0)
+
+La carpeta `05 - Pago de cuota con validacion SQL (pre/post)` aplica el patrón de
+[`docs/TAREA-SQL-REST-DINAMICO.md`](../../docs/TAREA-SQL-REST-DINAMICO.md) sobre los endpoints
+de escritura del módulo:
+
+- **Pre-request de la colección:** declara una sola vez `utils.bodySqlRest(sql, params)` (consulta
+  `POST /api/v2/sql/select`) y resetea a su valor por defecto las variables del body
+  (`monto_solicitado`, `tasa_interes`, `plazo_meses`, `numero_cuota`).
+- **Pre-request de cada request:** valida la precondición en la BD (el préstamo está en
+  `solicitado`, la cuota está `pendiente`, etc.) y guarda una foto del estado (saldo, cantidad de
+  cuotas pagadas, `COUNT(*)`). Los casos negativos sobreescriben **una sola** variable.
+- **Tests (post-response):** validan status y respuesta, y vuelven a consultar la BD para confirmar
+  el INSERT/UPDATE o, en los negativos, que nada cambió.
+- **Datos propios:** el flujo crea su propio usuario y préstamo en cada corrida, así no modifica
+  los datos compartidos del sandbox. Si falla un paso previo, los siguientes quedan `skipped`.
+
 ## Ejecución y reportes
 
-La colección es idempotente: cubre consultas de préstamo vigente, préstamo pagado, cuotas
-pendientes, cuotas vencidas y un préstamo inexistente. No ejecuta pagos sobre los datos compartidos
-del sandbox.
+Las carpetas 02 a 04 son idempotentes: cubren consultas de préstamo vigente, préstamo pagado,
+cuotas pendientes, cuotas vencidas y un préstamo inexistente. La carpeta 05 crea datos propios
+(usuario + préstamo de prueba) en cada corrida para probar los endpoints de escritura.
 
 ```powershell
 npm run test:api:grupo-03 -- --env-var "api_key=$env:API_KEY"
