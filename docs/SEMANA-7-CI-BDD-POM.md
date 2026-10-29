@@ -73,5 +73,5 @@ Siguiente acción: <qué falta comprobar y quién>
 ## Fuera de alcance
 
 - JMeter ya tiene su workflow (`Y_AIQUAAECHO_jmeter.yml`); la carga se programa aparte.
-- `qa-checks.yml` mantiene `https://aiquaa.com` como fallback porque `tests/e2e/smoke.spec.ts`
-  navega rutas de ese sitio (`/labs`). Alinearlo con la sandbox requiere reescribir el smoke.
+- `qa-checks.yml` usa la misma sandbox (`BASE_URL`) y aplica el mismo control de cero
+  escenarios sobre `results/cucumber-report.json` (`npm run test:bdd:check:default`).

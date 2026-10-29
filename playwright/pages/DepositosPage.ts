@@ -21,8 +21,21 @@ export class DepositosPage extends BasePage {
    * Autentica y, antes de hacerlo, instala una guarda de red: cualquier escritura
    * (POST/PUT/PATCH/DELETE) hacia el proxy de la API se aborta y se registra, así
    * ningún escenario puede modificar datos compartidos aunque la pantalla lo permita.
+   *
+   * `allowWrites` desactiva la guarda: usarlo solo con el cliente del fixture
+   * aislado (`grupos/grupo-05-ahorros-depositos/fixtures/DepositosFixture.ts`).
    */
-  async signInAsAdmin(email: string): Promise<void> {
+  async signInAsAdmin(email: string, { allowWrites = false }: { allowWrites?: boolean } = {}): Promise<void> {
+    if (!allowWrites) await this.installWriteGuard();
+    await this.page.goto('/');
+    await this.page.getByRole('radio', { name: /Curso 2/ }).check();
+    await this.page.getByRole('button', { name: 'Continuar' }).click();
+    await this.page.getByLabel('Email').fill(email);
+    await this.page.getByRole('button', { name: 'Ingresar' }).click();
+    await expect(this.page.getByRole('heading', { name: /Bienvenido/ })).toBeVisible();
+  }
+
+  private async installWriteGuard(): Promise<void> {
     await this.page.context().route(/\/api\/proxy\//, async (route) => {
       const request = route.request();
       if (request.method() === 'GET') {
@@ -32,12 +45,6 @@ export class DepositosPage extends BasePage {
       this.writeAttempts.push(`${request.method()} ${request.url()}`);
       await route.abort();
     });
-    await this.page.goto('/');
-    await this.page.getByRole('radio', { name: /Curso 2/ }).check();
-    await this.page.getByRole('button', { name: 'Continuar' }).click();
-    await this.page.getByLabel('Email').fill(email);
-    await this.page.getByRole('button', { name: 'Ingresar' }).click();
-    await expect(this.page.getByRole('heading', { name: /Bienvenido/ })).toBeVisible();
   }
 
   private expectNoWritesAttempted(): void {
@@ -222,7 +229,7 @@ export class DepositosPage extends BasePage {
   }
 
   async expectDepositNotCreated(): Promise<void> {
-    await expect(this.page).toHaveURL(/\/v2\/depositos\/new$/);
+    await expect(this.page).toHaveURL(/\/v2\/depositos\/new(\?.*)?$/);
     this.expectNoWritesAttempted();
   }
 
@@ -230,6 +237,35 @@ export class DepositosPage extends BasePage {
     await expect(this.field('monto-hint')).toContainText(/Mínimo PYG\s[\d.]+,\d{2}/);
     expect(this.availableTerms.length).toBeGreaterThan(0);
     this.expectNoWritesAttempted();
+  }
+
+  // ── Escrituras sobre el cliente del fixture (requiere allowWrites) ────────
+
+  /** Abre el formulario ya posicionado en el titular del fixture (`?usuarioId=`) y elige su cuenta. */
+  async openNewDepositFormFor(usuarioId: number, cuentaId: number): Promise<void> {
+    await this.page.goto(`/v2/depositos/new?usuarioId=${usuarioId}`);
+    await expect(this.page.getByTestId('v2-depositos-form')).toBeVisible();
+    const cuenta = this.field('cuentaId');
+    await expect(cuenta.locator(`option[value="${cuentaId}"]`)).toBeAttached({ timeout: 15_000 });
+    await cuenta.selectOption(String(cuentaId));
+  }
+
+  /** Después de enviar el formulario la pantalla navega al detalle: devuelve el id del depósito creado. */
+  async expectDepositCreated(): Promise<number> {
+    await expect(this.page).toHaveURL(/\/v2\/depositos\/\d+$/, { timeout: 15_000 });
+    const id = Number(this.page.url().match(/depositos\/(\d+)$/)?.[1]);
+    await expect(this.detail().getByTestId('v2-depositos-detail-estado')).toHaveAttribute('data-value', 'activo');
+    return id;
+  }
+
+  async cancelDepositEarly(id: number): Promise<void> {
+    await this.page.goto(`/v2/depositos/${id}`);
+    await this.page.getByTestId(`v2-depositos-row-${id}-cancelar`).click();
+    await this.page.getByTestId(`v2-depositos-row-${id}-cancelar-confirm-accept`).click();
+  }
+
+  async expectDepositStatus(status: string): Promise<void> {
+    await expect(this.detail().getByTestId('v2-depositos-detail-estado')).toHaveAttribute('data-value', status, { timeout: 15_000 });
   }
 
   // ── Tarifario y plazos ────────────────────────────────────────────────────

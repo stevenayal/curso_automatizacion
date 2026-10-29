@@ -1,11 +1,13 @@
 # language: es
-@wip @grupo-04
+@grupo-04
 Característica: Transferencias y pagos
   Como cliente del banco
   quiero transferir dinero y pagar facturas
   para cumplir con mis obligaciones
 
-  # Quitar el tag @wip cuando los steps estén implementados en tests/bdd/steps.
+  # Cada escenario corre sobre un cliente propio creado por el fixture aislado
+  # (grupos/grupo-04-transferencias-pagos/fixtures/TransferenciasFixture.ts, issue #28).
+  # Los de factura siguen @wip: la API v2 del sandbox todavía no expone facturas.
 
   @happy-path
   Escenario: Transferencia entre cuentas propias
@@ -15,7 +17,7 @@ Característica: Transferencias y pagos
 
   @negativo
   Escenario: Transferencia con la misma cuenta de origen y destino
-    Dado que el cliente tiene una cuenta activa
+    Dado que el cliente tiene una cuenta activa para transferir
     Cuando intenta transferir a esa misma cuenta
     Entonces el sistema rechaza la operación y no registra la transferencia
 
@@ -35,7 +37,7 @@ Característica: Transferencias y pagos
     Entonces el sistema rechaza la operación y no descuenta el monto
     Y la transferencia no queda registrada
 
-  @happy-path
+  @wip @happy-path
   Escenario: Pago exitoso de una factura pendiente
     Dado que el cliente tiene una factura pendiente y saldo suficiente en su cuenta
     Cuando paga la factura por el monto total adeudado
@@ -53,37 +55,38 @@ Característica: Transferencias y pagos
     Cuando intenta transferir a un número de cuenta que no existe
     Entonces el sistema rechaza la operación y no registra la transferencia
   
-  @negativo
+  @wip @negativo
   Escenario: Pago con saldo insuficiente
     Dado que el cliente tiene una factura pendiente y saldo insuficiente en su cuenta
     Cuando intenta pagar el monto adeudado
     Entonces el sistema rechaza la operación y no registra el pago
 
- @negativo
-  Escenario: Transferencia con monto cero o negativo 
+  @negativo
+  Escenario: Transferencia con monto cero o negativo
     Dado que el cliente tiene una cuenta activa con saldo suficiente
     Cuando intenta transferir un monto menor o igual a cero
     Entonces el sistema rechaza la operación y muestra un error de monto inválido
 
-  @happy-path
+  @web @happy-path
   Escenario: Registrar beneficiario exitosamente
     Dado que el usuario se encuentra en el sector de "Agregar Beneficiario"
     Cuando completa el formulario con los datos y confirma la operación
     Entonces el nuevo contacto debe aparecer en la lista de cuentas guardadas
 
-  @negativo
+  @web @negativo
   Escenario: Intenta registrar beneficiario con datos inexistentes
     Dado que el usuario se encuentra en el sector de "Agregar Beneficiario"
     Cuando completa el formulario con datos que no existen
     Entonces el sistema rechaza la operación y no registra el contacto
 
-  @edge-case
+  # La UI acepta solo dígitos (6 a 20): el Nro de cuenta va sin guiones.
+  @web @edge-case
   Escenario: Intenta registrar beneficiario ya existente
-    Dado el usuario cuenta con un beneficiario con Nro de cuenta '000113636-01-1'
-    Cuando completa el formulario con Nro de cuenta '000113636-01-1' ya existente
+    Dado el usuario cuenta con un beneficiario con Nro de cuenta '000113636011'
+    Cuando completa el formulario con Nro de cuenta '000113636011' ya existente
     Entonces el sistema lanza una validación de dato redundante y no duplica el contacto
 
-  @negativo
+  @web @negativo
   Escenario: Transferencia a terceros que supera el límite diario permitido
     Dado que el cliente tiene una cuenta activa con saldo suficiente y su límite diario de transferencia a terceros es de Gs.50,000,000
     Cuando intenta transferir un importe de Gs.51,000,000 a un tercero

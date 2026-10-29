@@ -12,7 +12,7 @@ module.exports = {
     requireModule: ['ts-node/register'],
     tags: 'not @wip',
     // El JSON alimenta el informe PDF generado por el pipeline de CI.
-    format: ['progress', 'json:results/cucumber-report.json'],
+    format: ['progress', 'json:results/cucumber-report.json', 'html:results/cucumber-report.html'],
     formatOptions: { snippetInterface: 'async-await' },
   },
   wip: {
