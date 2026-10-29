@@ -83,15 +83,17 @@ export class DepositosFixture {
 
   /** Acceso directo a la API para los escenarios que verifican respuestas puntuales. */
   async request(method: string, ruta: string, body?: unknown): Promise<RespuestaApi> {
-    // Reintento simple ante 429: el sandbox limita las requests por minuto.
+    // Reintento ante 429: el sandbox limita las requests por minuto y por API key.
     for (let intento = 0; ; intento++) {
       const res = await fetch(`${this.apiUrl}${ruta}`, {
         method,
         headers: { 'Content-Type': 'application/json', 'x-api-key': this.apiKey },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
-      if (res.status === 429 && intento < 3) {
-        await new Promise((r) => setTimeout(r, 2_000 * (intento + 1)));
+      if (res.status === 429 && intento < 5) {
+        // La API key del CI es compartida (200 req/min): se espera lo que indica Retry-After.
+        const espera = Math.min(Number(res.headers.get('retry-after')) || 10, 60);
+        await new Promise((r) => setTimeout(r, espera * 1_000 + Math.random() * 1_000));
         continue;
       }
       const texto = await res.text();

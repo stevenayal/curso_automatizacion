@@ -10,6 +10,9 @@ const adminEmail = process.env.TEST_ADMIN_EMAIL || 'admin@aiquaa.com';
  * y cancelar no tocan cuentas compartidas del seed.
  */
 test.describe('Grupo 05 — Depósitos a plazo con fixture aislado @smoke @grupo-05 @fixture', () => {
+  // El fixture reintenta ante 429 (API key compartida del CI): más margen que el timeout global.
+  test.describe.configure({ timeout: 120_000 });
+
   let fixture: DepositosFixture;
   let depositos: DepositosPage;
   let cuentaId: number;
