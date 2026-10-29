@@ -19,13 +19,34 @@ Máximo 3. Completar con nombre y email (ver [`docs/ROSTER.md`](../../docs/ROSTE
 
 ## Alcance
 
-Completar antes de escribir el primer escenario:
+- **Objetivo:** describir y trazar el comportamiento de ahorros programados y
+  depósitos a plazo del Grupo 05-01 según los requerimientos CIT v1.0, distinguiendo
+  las reglas de la API de las validaciones adicionales de la web.
+- **Supuestos:** se trabaja con la sandbox del curso 2 y su contrato API v2.
+  La futura ejecución requiere credenciales desde el entorno, cuentas de prueba
+  propias y fixtures con estados y fechas controlados.
+- **Riesgos:** los datos compartidos pueden cambiar durante las comprobaciones
+  de saldos y movimientos. Las operaciones crean, debitan o inmovilizan fondos;
+  algunos casos de ahorro no permiten recuperarlos desde la API. Se requieren
+  datos aislados y una estrategia de limpieza antes de automatizarlos.
+- **Cobertura incluida:** diseño de 59 escenarios que representan 98 casos
+  (84 de API y 14 de web), con casos positivos, negativos y de frontera para
+  RF-G5-01 a RF-G5-10, RF-G5-TK y las reglas transversales de acceso y de web.
+  La entrega incluye la feature, su trazabilidad con el CIT y la
+  validación de sintaxis Gherkin.
+- **Cobertura excluida:** según la sección 1 del CIT (página 3), no se probarán
+  como funcionalidades disponibles el débito automático mensual de aportes;
+  el retiro o rescate del dinero de un plan de ahorro; el pago de intereses
+  sobre el ahorro; el vencimiento automático y la renovación de depósitos;
+  la capitalización de intereses; las penalidades por cancelación anticipada;
+  ni los impuestos. El anexo normativo orientativo del CIT tampoco se utiliza
+  como criterio de aprobación. Se mantienen las comprobaciones del comportamiento
+  documentado, como la ausencia de acreditación automática y de penalidades.
 
-- **Objetivo:**
-- **Supuestos:**
-- **Riesgos:**
-- **Cobertura incluida:**
-- **Cobertura excluida:**
+**Estado de automatización BDD:** los 98 casos continúan como diseño con `@wip`.
+Quedan pendientes los steps de Cucumber, los fixtures y los Page Objects antes
+de ejecutarlos. Las pruebas existentes de Newman y JMeter tienen su propio
+alcance y no acreditan la ejecución de estos casos.
 
 ## API y datos
 
@@ -39,7 +60,7 @@ Completar antes de escribir el primer escenario:
 
 Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
-- [ ] Análisis y alcance (sección de arriba completa)
+- [x] Análisis y alcance (sección de arriba completa)
 - [x] BDD — `features/ahorros-depositos.feature` (happy path, negativo y edge case)
 - [x] API — colección Postman/Newman en `postman/` + patrón SQL REST dinámico
 - [ ] UI — `tests/e2e/ahorros-depositos.spec.ts` con Playwright
@@ -65,6 +86,22 @@ npm run test:api:grupo-05-01
 Los reportes locales quedan en `newman/grupo-05-01/`, excluido de Git.
 La ejecución real de Actions y el PR deben enlazarse al completar la entrega;
 el checklist de CI/CD queda pendiente hasta verificar una corrida verde.
+
+## BDD — Requerimientos CIT
+
+La [feature del grupo](features/ahorros-depositos.feature) se actualizó a partir
+del documento **Ahorros y Depósitos — Requerimientos funcionales, Grupo 5,
+CIT, versión 1.0, 10 de octubre de 2026**.
+La [trazabilidad BDD](docs/bdd-api.md) relaciona los casos con RF-G5-01 a RF-G5-10,
+RF-G5-TK y las reglas de API y web del documento.
+
+Son 59 definiciones de escenario y 98 casos al expandir sus ejemplos. Conservan
+`@wip` mientras se implementan los steps y fixtures del grupo; la validación de
+sintaxis no representa ejecución de pruebas contra la aplicación.
+
+La feature usa `@grupo-05-01` para identificar nuestro grupo. Al automatizarlos,
+se deberá limitar la selección a nuestra ruta o a ese tag para ejecutar
+únicamente nuestros escenarios.
 
 ## JMeter — Depósitos
 
