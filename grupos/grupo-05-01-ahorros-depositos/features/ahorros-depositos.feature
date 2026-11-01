@@ -1,15 +1,15 @@
 # language: es
-@wip @grupo-05-01
+@grupo-05-01
 Característica: Ahorros programados y depósitos a plazo
   Como cliente del banco
   quiero gestionar mis metas de ahorro y depósitos a plazo
   para conocer mis saldos, intereses y condiciones de cancelación
 
   # Fuente: Ahorros y Depósitos, requerimientos CIT del Grupo 5, v1.0, 10 de octubre de 2026.
-  # @wip: faltan steps del grupo y fixtures aislados; estos casos aún no se ejecutan en CI.
+  # @wip identifica los casos pendientes; los escenarios S6-G05-01-* tienen steps web.
   # Los casos API y web reflejan sus respectivas reglas, que no siempre coinciden.
 
-  @RF-G5-01 @api
+  @wip @RF-G5-01 @api
   Regla: Listar los planes de ahorro vigentes
 
     # criterio: El listado excluye las bajas y calcula lo que falta para cada meta.
@@ -44,7 +44,7 @@ Característica: Ahorros programados y depósitos a plazo
       Entonces la respuesta tiene código HTTP 400
       Y el código de error es "VALIDATION_ERROR"
 
-  @RF-G5-02 @api
+  @wip @RF-G5-02 @api
   Regla: Crear un plan de ahorro sin debitar la cuenta
 
     # criterio: Un plan nuevo comienza activo, sin ahorro acumulado y sin debitar la cuenta.
@@ -83,7 +83,7 @@ Característica: Ahorros programados y depósitos a plazo
         | nombre de meta vacío           |
         | tasa anual mayor que 999.99    |
 
-  @RF-G5-03 @api
+  @wip @RF-G5-03 @api
   Regla: Consultar el detalle de un plan vigente
 
     # criterio: La consulta conserva el identificador y muestra meta, saldo y faltante.
@@ -109,7 +109,7 @@ Característica: Ahorros programados y depósitos a plazo
         | inexistente |
         | dado de baja |
 
-  @RF-G5-04 @api
+  @wip @RF-G5-04 @api
   Regla: Modificar únicamente las condiciones de un plan activo
 
     # criterio: Reemplazar las condiciones recalcula el faltante y omitir la tasa la reinicia a cero.
@@ -154,7 +154,7 @@ Característica: Ahorros programados y depósitos a plazo
         | completado |
         | cancelado  |
 
-  @RF-G5-05 @api
+  @wip @RF-G5-05 @api
   Regla: La baja de un ahorro es lógica y no devuelve el dinero
 
     # criterio: La baja quita el plan de los recursos vigentes sin cambiar su estado de negocio.
@@ -183,7 +183,7 @@ Característica: Ahorros programados y depósitos a plazo
       Entonces la respuesta tiene código HTTP 404
       Y el código de error es "NOT_FOUND"
 
-  @RF-G5-06 @api
+  @wip @RF-G5-06 @api
   Regla: Los aportes debitan la cuenta y acumulan ahorro de forma atómica
 
     # criterio: Sin monto explícito se aporta el importe mensual del plan.
@@ -265,7 +265,7 @@ Característica: Ahorros programados y depósitos a plazo
       Y el código de error es "NOT_FOUND"
       Y el mensaje es "Cuenta asociada al plan no encontrada."
 
-  @RF-G5-07 @api
+  @wip @RF-G5-07 @api
   Regla: Los depósitos se listan según su titular y estado guardado
 
     # criterio: El listado incluye proyección de interés y días restantes.
@@ -307,7 +307,7 @@ Característica: Ahorros programados y depósitos a plazo
       Entonces la respuesta tiene código HTTP 200
       Y ese depósito activo no aparece en el resultado
 
-  @RF-G5-08 @api
+  @wip @RF-G5-08 @api
   Regla: Constituir un depósito inmoviliza el capital y registra un débito
 
     # criterio: La constitución fija capital, tasa, plazo, fechas y proyección simple base 365.
@@ -410,7 +410,7 @@ Característica: Ahorros programados y depósitos a plazo
       Y el código de error es "NOT_FOUND"
       Y el mensaje es "Cuenta no encontrada."
 
-  @RF-G5-09 @api
+  @wip @RF-G5-09 @api
   Regla: Consultar un depósito no cambia su estado ni liquida intereses
 
     # criterio: El detalle conserva las condiciones de creación y los campos calculados.
@@ -463,7 +463,7 @@ Característica: Ahorros programados y depósitos a plazo
         | reemplazar sus condiciones |
         | eliminarlo               |
 
-  @RF-G5-10 @api
+  @wip @RF-G5-10 @api
   Regla: Cancelar un depósito activo acredita capital e interés proporcional una sola vez
 
     # criterio: Cancelar el día de constitución devuelve solo el capital.
@@ -542,7 +542,7 @@ Característica: Ahorros programados y depósitos a plazo
         | bloqueada     |
         | cerrada       |
 
-  @RF-G5-TK @api @requiere-credenciales
+  @wip @RF-G5-TK @api @requiere-credenciales
   Regla: Las credenciales del grupo permiten obtener un token temporal
 
     # criterio: El token identifica al grupo 5 y puede autenticar las consultas del módulo.
@@ -580,7 +580,7 @@ Característica: Ahorros programados y depósitos a plazo
       Entonces la respuesta tiene código HTTP 403
       Y el código de error es "FORBIDDEN"
 
-  @transversal @api
+  @wip @transversal @api
   Regla: El acceso al módulo requiere autenticación del curso 2
 
     # criterio: Sin credencial de acceso la consulta se rechaza.
@@ -608,37 +608,47 @@ Característica: Ahorros programados y depósitos a plazo
   Regla: La pantalla aplica condiciones adicionales a las de la API
 
     # criterio: La web solo ofrece cuentas activas del titular en guaraníes.
-    @positivo
-    Escenario: Seleccionar una cuenta de débito en la pantalla
+    @S6-G05-01-04 @positivo
+    Escenario: S6-G05-01-04 Seleccionar una cuenta de débito en la pantalla
       Dado que el cliente inició sesión y está en el formulario de ahorro o depósito
       Cuando selecciona el titular de la operación
       Entonces las opciones de cuenta contienen únicamente cuentas activas en guaraníes de ese titular
 
     # criterio: El mínimo de depósito de la UI es de 1000000 guaraníes.
-    @negativo @RF-G5-08
-    Escenario: Rechazar en la web un depósito por debajo del mínimo
+    @S6-G05-01-01 @smoke @negativo @RF-G5-08
+    Escenario: S6-G05-01-01 Rechazar en la web un depósito por debajo del mínimo
       Dado que el cliente está en el formulario de depósito con una cuenta elegible y saldo suficiente
       Cuando intenta constituir un depósito de 999999 guaraníes
       Entonces el formulario informa que no alcanza el mínimo de 1000000 guaraníes
       Y no envía la solicitud de constitución a la API
 
-    # criterio: El límite mínimo de la web es aceptado con las demás condiciones válidas.
-    @positivo @edge-case @RF-G5-08
-    Escenario: Constituir en la web un depósito por el importe mínimo
-      Dado que el cliente está en el formulario de depósito con una cuenta elegible y saldo suficiente
-      Cuando confirma un depósito de 1000000 guaraníes con plazo y tasa válidos
-      Entonces la pantalla muestra el depósito creado con las condiciones elegidas
+    # criterio: La web admite el mínimo y la tasa cero; cancelar el mismo día devuelve el capital completo una sola vez.
+    @S6-G05-01-07 @flujo-positivo @fixture-aislado @positivo @edge-case @RF-G5-08 @RF-G5-10
+    Esquema del escenario: S6-G05-01-07 Constituir y cancelar un depósito de <monto> guaraníes sin alterar el saldo inicial
+      Dado que existe un cliente y una cuenta propios con saldo inicial de 5000000 guaraníes
+      Cuando constituye desde la web un depósito de <monto> guaraníes al <tasa> por ciento durante <dias> días
+      Entonces el depósito aparece activo con sus condiciones y un interés proyectado de "<interes>"
+      Y la cuenta propia se debita únicamente por el capital constituido
+      Cuando cancela ese depósito desde la pantalla el mismo día
+      Entonces el depósito aparece cancelado sin días transcurridos ni intereses pagados
+      Y el saldo de la cuenta propia vuelve exactamente al saldo inicial
+      Y el depósito registra un único débito y un único reintegro del capital
+
+      Ejemplos:
+        | monto   | tasa | dias | interes |
+        | 1000000 | 3.5  | 30   | 2876.71 |
+        | 2000000 | 0    | 90   | 0.00    |
 
     # criterio: La web ofrece un catálogo cerrado de plazos, aunque la API acepte valores intermedios.
-    @positivo @RF-G5-08
-    Escenario: Consultar los plazos ofrecidos en la pantalla
+    @S6-G05-01-02 @smoke @positivo @RF-G5-08
+    Escenario: S6-G05-01-02 Consultar los plazos ofrecidos en la pantalla
       Dado que el cliente está en el formulario de constitución de un depósito
       Cuando consulta las opciones de plazo
       Entonces los plazos ofrecidos son 30, 60, 90, 180, 365, 730 y 1095 días
 
     # criterio: La sugerencia de tasa depende del plazo y puede editarse.
-    @positivo @RF-G5-08
-    Esquema del escenario: Consultar la tasa sugerida para el plazo elegido
+    @S6-G05-01-03 @smoke @positivo @edge-case @RF-G5-08
+    Esquema del escenario: S6-G05-01-03 Consultar la tasa sugerida para el plazo elegido
       Dado que el cliente está en el formulario de constitución de un depósito
       Cuando selecciona el plazo de <dias> días
       Entonces la pantalla sugiere una tasa anual de <tasa> por ciento
@@ -650,8 +660,8 @@ Característica: Ahorros programados y depósitos a plazo
         | 1095 | 8    |
 
     # criterio: La UI impone mínimo de meta, relación aporte-meta, duración y longitud del nombre.
-    @negativo @RF-G5-02
-    Esquema del escenario: Rechazar condiciones de ahorro inválidas para la web
+    @S6-G05-01-05 @negativo @RF-G5-02
+    Esquema del escenario: S6-G05-01-05 Rechazar condiciones de ahorro inválidas para la web
       Dado que el cliente está en el formulario de ahorro con los demás datos válidos
       Cuando intenta crear una meta con "<condicion>"
       Entonces la pantalla informa el incumplimiento de esa condición
@@ -666,15 +676,17 @@ Característica: Ahorros programados y depósitos a plazo
         | nombre con más de 40 caracteres     |
 
     # criterio: La web impide eliminar un ahorro activo con saldo, aunque la API permita la baja.
-    @negativo @RF-G5-05
-    Escenario: Impedir en la web la eliminación de un plan con dinero
+    @S6-G05-01-08 @negativo @RF-G5-05
+    Escenario: S6-G05-01-08 Impedir en la web la eliminación de un plan con dinero
       Dado que el cliente consulta un plan activo de prueba con saldo acumulado
       Cuando intenta eliminar ese plan desde la pantalla
       Entonces la pantalla impide la eliminación del plan con saldo
+      Y no envía la eliminación a la API
+      Y conserva el estado y los saldos del plan y de su cuenta
 
     # criterio: La web detecta importes mayores al saldo antes de enviarlos al servidor.
-    @negativo @RF-G5-06 @RF-G5-08
-    Esquema del escenario: Evitar una operación por encima del saldo desde la web
+    @S6-G05-01-06 @negativo @RF-G5-06 @RF-G5-08
+    Esquema del escenario: S6-G05-01-06 Evitar una operación por encima del saldo desde la web
       Dado que el cliente tiene una cuenta elegible con saldo menor al importe solicitado
       Cuando intenta realizar "<operacion>" desde el formulario
       Entonces la pantalla informa que el saldo es insuficiente
