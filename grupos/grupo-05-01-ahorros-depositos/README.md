@@ -75,7 +75,8 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 El workflow [grupo-05-01-ahorros-depositos.yml](../../.github/workflows/grupo-05-01-ahorros-depositos.yml)
 ejecuta los 9 escenarios de la colección existente, genera JSON y JUnit, convierte
 los resultados a PDF con Python y publica los reportes como artefactos por 14 días.
-Se activa con cambios del grupo en un PR, con push a `grupo_5`/`main` o manualmente.
+Se activa con push a `grupo_5`/`main` que cumpla los filtros de archivos del workflow,
+o manualmente desde Actions.
 
 Para ejecutar desde la raíz del repositorio:
 
@@ -216,8 +217,13 @@ Los umbrales de la práctica son P95 de hasta 3000 ms y errores de hasta 1 %;
 Grafana muestra métricas compartidas de la sandbox.
 
 En GitHub, configurar `API_KEY` en el entorno `api_key`. El workflow se ejecuta
-con push a `grupo_5`, mediante un PR con cambios en sus archivos o desde Actions. Publica el PDF, JTL,
+con push a `grupo_5` que cumpla sus filtros de archivos, o manualmente desde Actions.
+Publica el PDF, JTL,
 dashboard HTML, captura y resumen como artefactos durante 14 días.
+
+Newman y JMeter comparten la cola `grupo-05-01-sandbox` para ejecutarse de forma
+secuencial. Ambos usan push como disparador automático para evitar la duplicación
+por pull request. Los workflows compartidos del curso conservan sus propios disparadores.
 
 Para usar esta carga localmente, agregar
 `-q tests/performance/properties/grupo-05-01.properties` al comando JMeter anterior.

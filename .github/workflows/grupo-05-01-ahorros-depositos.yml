@@ -2,14 +2,6 @@ name: Grupo 05-01 - Ahorros y Depositos API
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'grupos/grupo-05-01-ahorros-depositos/**'
-      - '.github/workflows/grupo-05-01-ahorros-depositos.yml'
-      - 'scripts/run-grupo-05-01-api.cjs'
-      - 'skills/postman-newman-skill/reporter/**'
-      - 'package.json'
-      - 'package-lock.json'
   push:
     branches: [main, grupo_5]
     paths:
