@@ -5,14 +5,9 @@ name: Grupo 05 - Ahorros y Depositos API
 # reporter de Python de la skill postman-newman.
 # La coleccion obtiene o crea sus propios datos con pre-request SQL; no depende de ids fijos.
 
+# Sin pull_request: los PR desde forks no reciben secrets y el job quedaria en rojo por
+# falta de API_KEY. Se ejecuta por push a main o manualmente desde Actions.
 on:
-  pull_request:
-    paths:
-      - 'grupos/grupo-05-ahorros-depositos/**'
-      - 'skills/postman-newman-skill/reporter/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/grupo-05-ahorros-depositos.yml'
   push:
     branches:
       - main
