@@ -13,18 +13,24 @@ Característica: Préstamos
     Cuando consulta el detalle de ese préstamo
     Entonces el sistema devuelve el saldo pendiente y la próxima cuota
 
+  # bloqueo: no hay un segundo usuario autenticable documentado ni un préstamo
+  # ajeno con fixture en la UI; con solo admin@aiquaa.com no se puede reproducir.
   @negativo
   Escenario: Consulta de un préstamo de otro cliente
     Dado que el cliente está autenticado
     Cuando consulta un préstamo que no le pertenece
     Entonces el sistema rechaza la consulta
 
+  # bloqueo: el fixture documentado (préstamo 6) no existe en la UI de la sandbox.
+  # Además el estado esperado "cancelado" no coincide con el modelo, que usa "pagado".
   @edge-case
   Escenario: Préstamo con todas las cuotas pagadas
     Dado que el cliente tiene un préstamo con todas sus cuotas pagadas
     Cuando consulta el detalle de ese préstamo
     Entonces el saldo pendiente es cero y el estado es cancelado
 
+  # bloqueo: la UI no expone un estado de mora ni hay un fixture verificable de
+  # cuotas vencidas; ese fixture existe en la API, no en la web.
   @negativo
   Escenario: Consulta de un préstamo con cuotas vencidas sin pagar
     Dado que el cliente tiene un préstamo con al menos una cuota vencida y sin pagar
@@ -32,12 +38,16 @@ Característica: Préstamos
     Entonces el sistema indica que el préstamo está en mora
     Y muestra el monto total adeudado incluyendo las cuotas vencidas
 
+  # bloqueo: requiere una cuenta aislada sin fondos; pagar en la sandbox
+  # compartida mutaría datos y la regla prohíbe pagos sin fixture aislado.
   @negativo
   Escenario:  Intento de pago de cuota con fondos insuficientes
     Dado que el cliente quiere pagar una cuota de su prestamo
     Cuando consulta al préstamo correspondiente a pagar
     Entonces el sistema rechaza el pago debido a fondos insuficientes
 
+  # bloqueo: la UI actual solo permite pagar la siguiente cuota; no ofrece
+  # selección múltiple de cuotas consecutivas.
   @happy-path
   Escenario: El cliente selecciona múltiples cuotas para pagar
     Dado que el cliente tiene un préstamo vigente con al menos dos cuotas pendientes

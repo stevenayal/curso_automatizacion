@@ -59,6 +59,24 @@ Modelo de datos confirmado contra la API real:
 
 Colección Postman: [`postman/Grupo 03 - Prestamos.postman_collection.json`](./postman/Grupo%2003%20-%20Prestamos.postman_collection.json)
 
+## Incidencias encontradas
+
+Las incidencias del módulo están documentadas en
+[`docs/issues/`](../../docs/issues/README.md) y **publicadas como issues en GitHub**
+([#67–#73](https://github.com/stevenayal/curso_automatizacion/issues?q=is%3Aissue+label%3Agrupo-03)).
+Cada archivo explica el bloqueo real de los escenarios que siguen marcados `@wip`, o el bug de
+infraestructura detectado.
+
+| # | Incidencia | Tipo | Archivo | GitHub |
+|---|---|---|---|---|
+| 01 | Falta segundo cliente y préstamo ajeno para validar acceso denegado | Bloqueo de datos | [`grupo-03-01`](../../docs/issues/grupo-03-01-segundo-usuario-prestamo-ajeno.md) | [#67](https://github.com/stevenayal/curso_automatizacion/issues/67) |
+| 02 | Falta fixture de préstamo con todas las cuotas pagadas en la UI | Bloqueo de datos | [`grupo-03-02`](../../docs/issues/grupo-03-02-fixture-prestamo-pagado.md) | [#68](https://github.com/stevenayal/curso_automatizacion/issues/68) |
+| 03 | La UI no expone estado de mora ni fixture de cuotas vencidas | Bloqueo de UI | [`grupo-03-03`](../../docs/issues/grupo-03-03-fixture-cuotas-vencidas-mora.md) | [#69](https://github.com/stevenayal/curso_automatizacion/issues/69) |
+| 04 | Falta cuenta aislada sin fondos para probar el pago rechazado | Bloqueo de datos | [`grupo-03-04`](../../docs/issues/grupo-03-04-cuenta-aislada-fondos-insuficientes.md) | [#70](https://github.com/stevenayal/curso_automatizacion/issues/70) |
+| 05 | La UI no permite seleccionar múltiples cuotas para pagar | Bloqueo de UI | [`grupo-03-05`](../../docs/issues/grupo-03-05-seleccion-multiple-cuotas.md) | [#71](https://github.com/stevenayal/curso_automatizacion/issues/71) |
+| 06 | Timeout por defecto de Cucumber insuficiente para hooks de Playwright | Bug de infra | [`infra-06`](../../docs/issues/infra-06-timeout-hooks-cucumber-playwright.md) | [#72](https://github.com/stevenayal/curso_automatizacion/issues/72) |
+| 07 | Inconsistencia de estado: la feature dice "cancelado" y el modelo usa "pagado" | Bug de definición | [`grupo-03-07`](../../docs/issues/grupo-03-07-inconsistencia-estado-pagado-cancelado.md) | [#73](https://github.com/stevenayal/curso_automatizacion/issues/73) |
+
 ## Entregables
 
 Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
@@ -69,4 +87,5 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 - [ ] UI — `tests/e2e/prestamos.spec.ts` con Playwright
 - [ ] Evidencias en `evidence/`
 - [ ] CI/CD verde
+- [X] Incidencias — bloqueos y bugs documentados en [`docs/issues/`](../../docs/issues/README.md)
 - [X] PR de `grupo-03-prestamos` hacia `main` usando la plantilla del repo
