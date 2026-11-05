@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Grupo 05 - Ahorros y Depositos - 5 escenarios" tests="9" time="3.890">
+  <testsuite name="Escenario 1 - Consultar deposito a plazo vigente" id="2711b756-7614-45e9-9cae-b80e1cac0d81" timestamp="2026-10-20T15:49:37.005Z" tests="4" failures="0" errors="0" time="0.346">
+    <testcase name="El status es 200" time="0.346" classname="Escenario1ConsultarDepositoAPlazoVigente"/>
+    <testcase name="La respuesta tiene los datos del deposito" time="0.346" classname="Escenario1ConsultarDepositoAPlazoVigente"/>
+    <testcase name="El deposito esta activo" time="0.346" classname="Escenario1ConsultarDepositoAPlazoVigente"/>
+    <testcase name="El tiempo de respuesta es menor a 3000 ms" time="0.346" classname="Escenario1ConsultarDepositoAPlazoVigente"/>
+  </testsuite>
+  <testsuite name="Escenario 2 - Deposito en su fecha de vencimiento" id="1ba17ced-834b-4537-89ce-3b1e08308378" timestamp="2026-10-20T15:49:37.005Z" tests="4" failures="0" errors="0" time="0.279">
+    <testcase name="El status es 200" time="0.279" classname="Escenario2DepositoEnSuFechaDeVencimiento"/>
+    <testcase name="El deposito esta vencido" time="0.279" classname="Escenario2DepositoEnSuFechaDeVencimiento"/>
+    <testcase name="La respuesta muestra los intereses generados" time="0.279" classname="Escenario2DepositoEnSuFechaDeVencimiento"/>
+    <testcase name="El tiempo de respuesta es menor a 3000 ms" time="0.279" classname="Escenario2DepositoEnSuFechaDeVencimiento"/>
+  </testsuite>
+  <testsuite name="Escenario 3 - Constituir deposito sin saldo suficiente" id="e026f818-5031-4cd5-b086-8ced023fa68d" timestamp="2026-10-20T15:49:37.005Z" tests="2" failures="0" errors="0" time="0.306">
+    <testcase name="La operacion es rechazada con status 409" time="0.306" classname="Escenario3ConstituirDepositoSinSaldoSuficiente"/>
+    <testcase name="El tiempo de respuesta es menor a 3000 ms" time="0.306" classname="Escenario3ConstituirDepositoSinSaldoSuficiente"/>
+  </testsuite>
+  <testsuite name="Escenario 4 - Cancelar deposito a plazo antes de su vencimiento" id="e06fdc7b-c180-45bc-b1d1-c3e9b4fd4d5f" timestamp="2026-10-20T15:49:37.005Z" tests="8" failures="0" errors="0" time="0.328">
+    <testcase name="La cancelacion anticipada se procesa correctamente" time="0.328" classname="Escenario4CancelarDepositoAPlazoAntesDeSuVencimiento"/>
+    <testcase name="Se cancela el deposito solicitado" time="0.328" classname="Escenario4CancelarDepositoAPlazoAntesDeSuVencimiento"/>
+    <testcase name="El deposito queda en estado cancelado" time="0.328" classname="Escenario4CancelarDepositoAPlazoAntesDeSuVencimiento"/>
+    <testcase name="La respuesta contiene el capital del deposito" time="0.328" classname="Escenario4CancelarDepositoAPlazoAntesDeSuVencimiento"/>
+    <testcase name="La respuesta contiene los intereses generados" time="0.328" classname="Escenario4CancelarDepositoAPlazoAntesDeSuVencimiento"/>
+    <testcase name="La respuesta contiene los dias transcurridos" time="0.328" classname="Escenario4CancelarDepositoAPlazoAntesDeSuVencimiento"/>
+    <testcase name="La cuenta del cliente recibe el resultado de la cancelacion" time="0.328" classname="Escenario4CancelarDepositoAPlazoAntesDeSuVencimiento"/>
+    <testcase name="El tiempo de respuesta es menor a 3000 ms" time="0.328" classname="Escenario4CancelarDepositoAPlazoAntesDeSuVencimiento"/>
+  </testsuite>
+  <testsuite name="Escenario 5 - Obtener plan de ahorro por ID" id="abe9bdec-ea86-433f-96be-67d6ecb40bb4" timestamp="2026-10-20T15:49:37.005Z" tests="4" failures="0" errors="0" time="0.283">
+    <testcase name="La consulta devuelve el código 200" time="0.283" classname="Escenario5ObtenerPlanDeAhorroPorId"/>
+    <testcase name="La respuesta tiene formato JSON" time="0.283" classname="Escenario5ObtenerPlanDeAhorroPorId"/>
+    <testcase name="El ID del plan de ahorro es correcto" time="0.283" classname="Escenario5ObtenerPlanDeAhorroPorId"/>
+    <testcase name="El tiempo de respuesta es menor a 3000 ms" time="0.283" classname="Escenario5ObtenerPlanDeAhorroPorId"/>
+  </testsuite>
+  <testsuite name="E2E - Flujos con validacion SQL / Constituir deposito (INSERT + validacion SQL)" id="2729c55b-1890-47fb-b164-71593a4e3e9a" timestamp="2026-10-20T15:49:37.005Z" tests="8" failures="0" errors="0" time="0.286">
+    <testcase name="Precondicion: la cuenta estaba activa y con saldo suficiente" time="0.286" classname="E2EFlujosConValidacionSqlConstituirDepositoInsertValidacionSql"/>
+    <testcase name="status 201 - deposito constituido" time="0.286" classname="E2EFlujosConValidacionSqlConstituirDepositoInsertValidacionSql"/>
+    <testcase name="La respuesta trae el deposito creado y activo" time="0.286" classname="E2EFlujosConValidacionSqlConstituirDepositoInsertValidacionSql"/>
+    <testcase name="El vencimiento es fecha_inicio + plazoDias" time="0.286" classname="E2EFlujosConValidacionSqlConstituirDepositoInsertValidacionSql"/>
+    <testcase name="La BD confirma el deposito con estado 'activo'" time="0.286" classname="E2EFlujosConValidacionSqlConstituirDepositoInsertValidacionSql"/>
+    <testcase name="La BD registro exactamente un deposito nuevo" time="0.286" classname="E2EFlujosConValidacionSqlConstituirDepositoInsertValidacionSql"/>
+    <testcase name="El saldo de la cuenta se debito por el monto del deposito" time="0.286" classname="E2EFlujosConValidacionSqlConstituirDepositoInsertValidacionSql"/>
+    <testcase name="Se registro el movimiento de debito del deposito" time="0.286" classname="E2EFlujosConValidacionSqlConstituirDepositoInsertValidacionSql"/>
+  </testsuite>
+  <testsuite name="E2E - Flujos con validacion SQL / Constituir deposito - plazo invalido (validacion negativa)" id="e442c7c5-b3fd-4905-9dfb-9b75cf98637f" timestamp="2026-10-20T15:49:37.005Z" tests="4" failures="0" errors="0" time="0.271">
+    <testcase name="status 400 (plazoDias por debajo del minimo)" time="0.271" classname="E2EFlujosConValidacionSqlConstituirDepositoPlazoInvalidoValidacionNegativa"/>
+    <testcase name="El error es VALIDATION_ERROR" time="0.271" classname="E2EFlujosConValidacionSqlConstituirDepositoPlazoInvalidoValidacionNegativa"/>
+    <testcase name="La BD no registro ningun deposito nuevo" time="0.271" classname="E2EFlujosConValidacionSqlConstituirDepositoPlazoInvalidoValidacionNegativa"/>
+    <testcase name="El saldo de la cuenta no cambio" time="0.271" classname="E2EFlujosConValidacionSqlConstituirDepositoPlazoInvalidoValidacionNegativa"/>
+  </testsuite>
+  <testsuite name="E2E - Flujos con validacion SQL / Cancelar deposito creado (UPDATE + validacion SQL)" id="2364ad26-5b86-424a-b9c5-91da0a88b4bb" timestamp="2026-10-20T15:49:37.005Z" tests="9" failures="0" errors="0" time="0.269">
+    <testcase name="Precondicion: el deposito estaba 'activo' en la BD" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+    <testcase name="La cancelacion anticipada se procesa correctamente" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+    <testcase name="Se cancela el deposito solicitado" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+    <testcase name="El deposito queda en estado cancelado" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+    <testcase name="La respuesta contiene capital e intereses generados" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+    <testcase name="El tiempo de respuesta es menor a 3000 ms" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+    <testcase name="La BD confirma el deposito en estado 'cancelado'" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+    <testcase name="La cuenta se acredito con capital + interes prorrateado" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+    <testcase name="Se registro el movimiento de credito de la cancelacion" time="0.269" classname="E2EFlujosConValidacionSqlCancelarDepositoCreadoUpdateValidacionSql"/>
+  </testsuite>
+  <testsuite name="E2E - Flujos con validacion SQL / Cancelar deposito ya cancelado (validacion negativa)" id="c500ab9d-4f50-4538-a3c6-9e06c8d5dd43" timestamp="2026-10-20T15:49:37.005Z" tests="4" failures="0" errors="0" time="0.286">
+    <testcase name="Precondicion: el deposito ya estaba 'cancelado' en la BD" time="0.286" classname="E2EFlujosConValidacionSqlCancelarDepositoYaCanceladoValidacionNegativa"/>
+    <testcase name="status 409 - no se puede cancelar dos veces" time="0.286" classname="E2EFlujosConValidacionSqlCancelarDepositoYaCanceladoValidacionNegativa"/>
+    <testcase name="El error es CONFLICT" time="0.286" classname="E2EFlujosConValidacionSqlCancelarDepositoYaCanceladoValidacionNegativa"/>
+    <testcase name="La BD no cambio: estado, saldo y movimientos iguales" time="0.286" classname="E2EFlujosConValidacionSqlCancelarDepositoYaCanceladoValidacionNegativa"/>
+  </testsuite>
+</testsuites>

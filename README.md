@@ -3,7 +3,7 @@
 Repositorio base del curso. Cada grupo trabaja en su propia carpeta y rama, y entrega por Pull
 Request.
 
-- **Sitio bajo prueba (UI):** [AIQUAA](https://aiquaa.com)
+- **Sitio bajo prueba (UI):** <https://aiquaa-sandbox-web.vercel.app> (Curso 2 · Productos Bancarios, `/v2`). Local y CI usan la misma URL por defecto; se cambia con `BASE_URL` (`.env` o variable de repo en GitHub).
 - **API de práctica:** <https://aiquaa-sandbox-api.vercel.app/docs> — ver [`docs/API-SANDBOX.md`](docs/API-SANDBOX.md)
 - **Base de datos de pruebas:** Postgres, un usuario por grupo — ver [`docs/ACCESO-DB.md`](docs/ACCESO-DB.md)
 
@@ -16,9 +16,13 @@ Request.
 | 03 | [`grupo-03-prestamos`](grupos/grupo-03-prestamos) | Préstamos, cuotas, saldo, vencimientos y estado |
 | 04 | [`grupo-04-transferencias-pagos`](grupos/grupo-04-transferencias-pagos) | Transferencias, beneficiarios, importes y estados |
 | 05 | [`grupo-05-ahorros-depositos`](grupos/grupo-05-ahorros-depositos) | Ahorros, depósitos, tasas, plazos y vencimientos |
+| 05-01 | [`grupo-05-01-ahorros-depositos`](grupos/grupo-05-01-ahorros-depositos) | Ahorros y depósitos — equipo de la rama `grupo_5` |
 
 Un solo grupo por estudiante, máximo 3 integrantes. Lista de la clase en
 [`docs/ROSTER.md`](docs/ROSTER.md).
+
+Los requerimientos funcionales de cada módulo (un PDF por grupo, base para los escenarios BDD)
+están en [`docs/requerimientos/`](docs/requerimientos/README.md).
 
 > Préstamos y Ahorros/Depósitos todavía no tienen endpoints REST publicados: esos grupos
 > arrancan por BDD + validación SQL contra la base. Detalle en el README de cada grupo.
@@ -75,7 +79,9 @@ Si `npm run smoke` pasa sin errores, el entorno está bien configurado.
 curso_automatizacion/
 ├── .github/
 │   ├── pull_request_template.md   # plantilla de PR
-│   └── workflows/qa-checks.yml    # CI: BDD + smoke UI, y Newman a demanda
+│   └── workflows/
+│       ├── qa-checks.yml              # CI: BDD + smoke UI, y Newman a demanda
+│       └── Y_AIQUAAECHO_jmeter.yml    # flujo de prueba: carga JMeter + informe PDF
 ├── ci/                            # plantilla de pipeline de referencia
 ├── docs/
 │   ├── ACCESO-DB.md               # host, usuarios por grupo, cómo conectarse

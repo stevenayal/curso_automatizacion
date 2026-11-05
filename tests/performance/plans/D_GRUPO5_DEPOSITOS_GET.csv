@@ -1,0 +1,5 @@
+usuarioId,estado,EJEMPLO_a_reemplazar_por_datos_reales_de_sql_select
+1,activo
+1,vencido
+2,activo
+3,cancelado

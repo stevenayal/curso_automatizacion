@@ -1,0 +1,137 @@
+name: BDD + POM (sandbox)
+
+# Semana 7: ejecuta la suite BDD/POM aprobada y publica un informe PDF con
+# resultados, logs, evidencia visual y el codigo de las pruebas ejecutadas.
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Filtro de tags de Cucumber"
+        required: false
+        default: "not @wip"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'features/**'
+      - 'grupos/**/features/**'
+      - 'grupos/**/tests/**'
+      - 'tests/**'
+      - 'playwright/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/bdd-pom-ci.yml'
+  push:
+    branches: [main, develop, "grupo-*/**", "semana-*/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bdd-pom-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bdd-pom:
+    name: BDD, POM y evidencias PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BDD_CONFIG: tests/bdd/sandbox-pom/cucumber.js
+      BASE_URL: ${{ vars.BASE_URL_SANDBOX || 'https://aiquaa-sandbox-web.vercel.app' }}
+      CUCUMBER_TAGS: ${{ inputs.tags || 'not @wip' }}
+      HEADED: '0'
+      CI: true
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configurar Python para el informe
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Preparar directorios de evidencia
+        run: mkdir -p ci-evidence results allure-results
+
+      - name: Instalar dependencias
+        run: npm ci 2>&1 | tee ci-evidence/01-instalacion-dependencias.log
+
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium 2>&1 | tee ci-evidence/02-instalacion-playwright.log
+
+      - name: Revision BDD sin ejecutar
+        id: dryrun
+        continue-on-error: true
+        run: npx cucumber-js --config "$BDD_CONFIG" --profile dryrun 2>&1 | tee ci-evidence/03-dry-run-bdd.log
+
+      - name: Ejecutar escenarios BDD con POM
+        id: bdd
+        continue-on-error: true
+        run: npx cucumber-js --config "$BDD_CONFIG" --profile sandbox 2>&1 | tee ci-evidence/04-ejecucion-bdd.log
+
+      - name: Validar resultados BDD
+        id: bdd-summary
+        if: always()
+        continue-on-error: true
+        run: node scripts/check-cucumber-results.mjs results/cucumber.json 2>&1 | tee ci-evidence/05-resumen-bdd.log
+
+      - name: Ejecutar pruebas UI de Playwright
+        id: playwright
+        if: always()
+        continue-on-error: true
+        run: npm run test:e2e 2>&1 | tee ci-evidence/06-ejecucion-playwright.log
+
+      - name: Generar informe Allure HTML
+        if: always()
+        run: |
+          npx allure generate allure-results --clean -o allure-report \
+            2>&1 | tee ci-evidence/07a-allure-generate.log \
+            || echo "allure-results vacío o sin datos — se omite HTML"
+
+      - name: Exportar informe Allure a PDF (Playwright)
+        if: always()
+        run: |
+          node scripts/export_allure_pdf.mjs \
+            2>&1 | tee ci-evidence/07b-allure-pdf.log \
+            || echo "PDF Allure no generado — activando fallback reportlab"
+          python -m pip install --quiet reportlab
+          python scripts/generate_ci_report.py --cucumber-results results/cucumber.json \
+            2>&1 | tee ci-evidence/07c-informe-fallback.log
+
+      - name: Publicar informe, resultados y evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semana-7-bdd-pom-evidencias-${{ github.run_number }}
+          path: |
+            ci-evidence/
+            results/
+            allure-report/
+            allure-results/
+            playwright-report/
+            test-results/
+            tests/
+            features/
+            playwright/pages/
+            grupos/**/tests/
+            grupos/**/features/
+            grupos/**/playwright/pages/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Marcar fallo de validaciones
+        if: always() && (steps.dryrun.outcome == 'failure' || steps.bdd.outcome == 'failure' || steps.bdd-summary.outcome == 'failure' || steps.playwright.outcome == 'failure')
+        run: |
+          echo "Dry-run BDD: ${{ steps.dryrun.outcome }}"
+          echo "BDD: ${{ steps.bdd.outcome }}"
+          echo "Resumen BDD: ${{ steps.bdd-summary.outcome }}"
+          echo "Playwright: ${{ steps.playwright.outcome }}"
+          exit 1

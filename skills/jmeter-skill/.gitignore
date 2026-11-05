@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Resultados JMeter
+results/
+*.jtl
+*.original.md
+
+# Dashboard HTML generado
+dashboard/
+
+# Environments con datos reales
+D_*_PROD.csv
+D_*_STAGING.csv
+.env
+*.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp

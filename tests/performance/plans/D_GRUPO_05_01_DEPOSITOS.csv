@@ -1,0 +1,4 @@
+caso,usuarioId,cuentaId,monto,plazoDias,tasaAnual,estado
+DP-01,1,1,100000,30,8,activo
+DP-02,1,1,150000,60,10,vencido
+DP-03,1,1,200000,90,12,cancelado

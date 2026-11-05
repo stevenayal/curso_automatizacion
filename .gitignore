@@ -27,3 +27,4 @@ Thumbs.db
 
 # Reportes de Cucumber
 cucumber-report.json
+results/

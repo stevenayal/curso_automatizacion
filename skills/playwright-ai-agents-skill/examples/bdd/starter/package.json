@@ -1,0 +1,26 @@
+{
+  "name": "aiquaa-bdd-playwright-starter",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "22 || 24 || >=26"
+  },
+  "scripts": {
+    "test": "cucumber-js",
+    "test:sandbox": "node scripts/run-sandbox.cjs",
+    "test:smoke": "cucumber-js --profile smoke",
+    "test:parallel": "cucumber-js --parallel 2",
+    "test:dryrun": "cucumber-js --profile dryrun",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run test:dryrun && npm test",
+    "browsers:install": "playwright install chromium",
+    "classify": "node scripts/classify-failures.mjs --input results/cucumber-report.json --out results/CLASIF_BDD_STARTER.json"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "13.2.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.13.6",
+    "ts-node": "10.9.2",
+    "typescript": "5.9.3"
+  }
+}

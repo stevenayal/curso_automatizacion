@@ -1,0 +1,110 @@
+newman
+
+Grupo 05 - Ahorros y Depositos - 5 escenarios
+
+→ Escenario 1 - Consultar deposito a plazo vigente
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 511B, 1099ms]
+  GET https://aiquaa-sandbox-api.vercel.app/api/v2/depositos/2 [200 OK, 806B, 346ms]
+  √  El status es 200
+  √  La respuesta tiene los datos del deposito
+  √  El deposito esta activo
+  √  El tiempo de respuesta es menor a 3000 ms
+
+→ Escenario 2 - Deposito en su fecha de vencimiento
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 511B, 286ms]
+  GET https://aiquaa-sandbox-api.vercel.app/api/v2/depositos/4 [200 OK, 813B, 279ms]
+  √  El status es 200
+  √  El deposito esta vencido
+  √  La respuesta muestra los intereses generados
+  √  El tiempo de respuesta es menor a 3000 ms
+
+→ Escenario 3 - Constituir deposito sin saldo suficiente
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/depositos [409 Conflict, 552B, 306ms]
+  √  La operacion es rechazada con status 409
+  √  El tiempo de respuesta es menor a 3000 ms
+
+→ Escenario 4 - Cancelar deposito a plazo antes de su vencimiento
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/depositos [201 Created, 969B, 327ms]
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/depositos/33/cancelar [200 OK, 975B, 328ms]
+  √  La cancelacion anticipada se procesa correctamente
+  √  Se cancela el deposito solicitado
+  √  El deposito queda en estado cancelado
+  √  La respuesta contiene el capital del deposito
+  √  La respuesta contiene los intereses generados
+  √  La respuesta contiene los dias transcurridos
+  √  La cuenta del cliente recibe el resultado de la cancelacion
+  √  El tiempo de respuesta es menor a 3000 ms
+
+→ Escenario 5 - Obtener plan de ahorro por ID
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 511B, 325ms]
+  GET https://aiquaa-sandbox-api.vercel.app/api/v2/ahorros/1 [200 OK, 777B, 283ms]
+  √  La consulta devuelve el código 200
+  √  La respuesta tiene formato JSON
+  √  El ID del plan de ahorro es correcto
+  √  El tiempo de respuesta es menor a 3000 ms
+
+□ E2E - Flujos con validacion SQL
+└ Constituir deposito (INSERT + validacion SQL)
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 565B, 294ms]
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/depositos [201 Created, 969B, 289ms]
+  √  Precondicion: la cuenta estaba activa y con saldo suficiente
+  √  status 201 - deposito constituido
+  √  La respuesta trae el deposito creado y activo
+  √  El vencimiento es fecha_inicio + plazoDias
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 624B, 286ms]
+  √  La BD confirma el deposito con estado 'activo'
+  √  La BD registro exactamente un deposito nuevo
+  √  El saldo de la cuenta se debito por el monto del deposito
+  √  Se registro el movimiento de debito del deposito
+
+└ Constituir deposito - plazo invalido (validacion negativa)
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 547B, 268ms]
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/depositos [400 Bad Request, 713B, 254ms]
+  √  status 400 (plazoDias por debajo del minimo)
+  √  El error es VALIDATION_ERROR
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 547B, 271ms]
+  √  La BD no registro ningun deposito nuevo
+  √  El saldo de la cuenta no cambio
+
+└ Cancelar deposito creado (UPDATE + validacion SQL)
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 564B, 298ms]
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/depositos/34/cancelar [200 OK, 975B, 309ms]
+  √  Precondicion: el deposito estaba 'activo' en la BD
+  √  La cancelacion anticipada se procesa correctamente
+  √  Se cancela el deposito solicitado
+  √  El deposito queda en estado cancelado
+  √  La respuesta contiene capital e intereses generados
+  √  El tiempo de respuesta es menor a 3000 ms
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 617B, 269ms]
+  √  La BD confirma el deposito en estado 'cancelado'
+  √  La cuenta se acredito con capital + interes prorrateado
+  √  Se registro el movimiento de credito de la cancelacion
+
+└ Cancelar deposito ya cancelado (validacion negativa)
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 563B, 275ms]
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/depositos/34/cancelar [409 Conflict, 552B, 281ms]
+  √  Precondicion: el deposito ya estaba 'cancelado' en la BD
+  √  status 409 - no se puede cancelar dos veces
+  √  El error es CONFLICT
+  POST https://aiquaa-sandbox-api.vercel.app/api/v2/sql/select [200 OK, 563B, 286ms]
+  √  La BD no cambio: estado, saldo y movimientos iguales
+
+┌─────────────────────────┬─────────────────────┬─────────────────────┐
+│                         │            executed │              failed │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│              iterations │                   1 │                   0 │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│                requests │                  21 │                   0 │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│            test-scripts │                   9 │                   0 │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│      prerequest-scripts │                  17 │                   0 │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│              assertions │                  47 │                   0 │
+├─────────────────────────┴─────────────────────┴─────────────────────┤
+│ total run duration: 26s                                             │
+├─────────────────────────────────────────────────────────────────────┤
+│ total data received: 4.26kB (approx)                                │
+├─────────────────────────────────────────────────────────────────────┤
+│ average response time: 331ms [min: 254ms, max: 1099ms, s.d.: 173ms] │
+└─────────────────────────────────────────────────────────────────────┘

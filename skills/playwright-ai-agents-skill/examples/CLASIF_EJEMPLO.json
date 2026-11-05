@@ -1,0 +1,108 @@
+{
+  "source": "playwright-results.sample.json",
+  "summary": {
+    "total": 10,
+    "failed": 8,
+    "flaky": 1,
+    "byCategory": {
+      "PRODUCT_BUG": 2,
+      "TEST_BUG": 2,
+      "ENVIRONMENT": 1,
+      "DATA": 1,
+      "NETWORK": 1,
+      "UNKNOWN": 1
+    },
+    "healerCandidates": 1,
+    "maxHealAttempts": 2
+  },
+  "failures": [
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+      "title": "transferencia exitosa entre cuentas propias @transferencias @smoke",
+      "project": "chromium",
+      "category": "TEST_BUG",
+      "confidence": "high",
+      "matchedRule": "locator-not-found",
+      "healerAllowed": true,
+      "error": "Error: locator.click: Timeout 15000ms exceeded."
+    },
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+      "title": "transferencia exitosa entre cuentas propias @transferencias @smoke",
+      "project": "firefox",
+      "category": "ENVIRONMENT",
+      "confidence": "high",
+      "matchedRule": "browser-or-runner-setup",
+      "healerAllowed": false,
+      "error": "Error: browserType.launch: Executable doesn't exist at /ms-playwright/firefox-1466/firefox/firefox"
+    },
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+      "title": "saldo origen se descuenta por el monto transferido @transferencias @ledger",
+      "project": "chromium",
+      "category": "PRODUCT_BUG",
+      "confidence": "medium",
+      "matchedRule": "business-value-mismatch",
+      "healerAllowed": false,
+      "error": "Error: expect(received).toBe(expected) // Object.is equality"
+    },
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+      "title": "mensaje de confirmación visible @transferencias",
+      "project": "chromium",
+      "category": "TEST_BUG",
+      "confidence": "medium",
+      "matchedRule": "ui-text-changed",
+      "healerAllowed": false,
+      "error": "Error: Timed out 5000ms waiting for expect(locator).toHaveText(expected)"
+    },
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+      "title": "POST /api/transfers retorna 201",
+      "project": "api",
+      "category": "PRODUCT_BUG",
+      "confidence": "medium",
+      "matchedRule": "http-5xx",
+      "healerAllowed": false,
+      "error": "Error: expect(received).toBe(expected) // Object.is equality"
+    },
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+      "title": "POST /api/beneficiaries crea beneficiario",
+      "project": "api",
+      "category": "DATA",
+      "confidence": "medium",
+      "matchedRule": "data-conflict",
+      "healerAllowed": false,
+      "error": "Error: expect(received).toBe(expected) // Object.is equality"
+    },
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+      "title": "GET /api/accounts responde",
+      "project": "api",
+      "category": "NETWORK",
+      "confidence": "high",
+      "matchedRule": "network-error",
+      "healerAllowed": false,
+      "error": "Error: apiRequestContext.get: connect ECONNREFUSED 10.0.0.12:8080"
+    },
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIAS_API.spec.ts",
+      "title": "exporta extracto en PDF",
+      "project": "api",
+      "category": "UNKNOWN",
+      "confidence": "low",
+      "matchedRule": null,
+      "healerAllowed": false,
+      "error": "Error: Unexpected token '<' in PDF stream parser"
+    }
+  ],
+  "flaky": [
+    {
+      "file": "tests/transferencias/T_TRANSFERENCIA_EXITOSA.spec.ts",
+      "title": "comprobante descargable @transferencias",
+      "project": "chromium",
+      "retries": 1
+    }
+  ]
+}

@@ -23,3 +23,9 @@ npx newman run "grupos/grupo-0N-modulo/postman/mi-coleccion.json" \
   --env-var "baseUrl=https://aiquaa-sandbox-api.vercel.app" \
   --env-var "apiKey=$API_KEY"
 ```
+
+## Coleccion de practica
+
+Para practicar antes de armar la coleccion del grupo, ver [`practica/`](./practica/README.md):
+coleccion guiada sobre `/api/v2` con ejemplos resueltos, ejercicios para completar y limpieza
+de datos. Se corre con `npm run test:practica`.

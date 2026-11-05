@@ -1,0 +1,78 @@
+
+name: Grupo 01 - Cuentas Bancarias
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  newman:
+    name: Pruebas Postman y reporte Python
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: |
+          npm ci
+          python -m pip install -r skills/postman-newman-skill/reporter/requirements.txt
+
+      - name: Ejecutar pruebas Postman Grupo 1
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          mkdir -p newman/grupo-01
+    
+            
+          npx newman run postman/Grupo1_Tarea3_Coleccion.json \
+            --folder "CONSULTA SQL - TAREA 3.0" \
+            --folder "TAREA 3.0 - MOVIMIENTO CON VALIDACION SQL" \
+            --folder "TAREA 3.0 - MOVIMIENTO NEGATIVO CON VALIDACION SQL" \
+            --env-var "base_url=https://aiquaa-sandbox-api.vercel.app" \
+            --env-var "api_key=$API_KEY" \
+            --reporters cli,json \
+            --reporter-json-export newman/grupo-01/newman-results.json
+
+
+        
+      - name: Generar informe PDF
+        if: always()
+        run: |
+          if [[ -f newman/grupo-01/newman-results.json ]]; then
+            python skills/postman-newman-skill/reporter/newman_report.py \
+              --results newman/grupo-01/newman-results.json \
+              --output newman/grupo-01/INFORME_GRUPO_01.pdf \
+              --banner skills/postman-newman-skill/reporter/assets/banner_portada.png \
+              --logo-aiquaa skills/postman-newman-skill/reporter/assets/logo_aiquaa_circle.png \
+              --logo-postman skills/postman-newman-skill/reporter/assets/logo_postman_clean.png \
+              --api-version "v2" \
+              --repo-url "${{ github.server_url }}/${{ github.repository }}" \
+              --author "Grupo 01 - Cuentas Bancarias" \
+              --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          else
+            echo "No se encontro el archivo de resultados Newman."
+          fi
+          
+      - name: Publicar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grupo-01-reportes
+          path: newman/grupo-01/
+          if-no-files-found: warn
+          retention-days: 14

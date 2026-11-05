@@ -1,0 +1,481 @@
+import { rfToken } from "./comun.mjs";
+
+export const grupo = {
+  n: 5,
+  slug: "grupo-05-ahorros-depositos",
+  titulo: "Ahorros y Depósitos",
+  modulo: "Módulo: Ahorro programado, depósitos a plazo, tasas, plazos y vencimientos",
+
+  alcance:
+    "Cubre dos productos de inversión. El **ahorro programado**: un plan con una meta y un aporte mensual, que acumula saldo con cada aporte debitado de una cuenta y se completa al alcanzar la meta. Y el **depósito a plazo fijo**: un importe que se inmoviliza desde una cuenta por un plazo y una tasa pactados, con su interés proyectado, y que puede cancelarse anticipadamente cobrando el interés proporcional a los días transcurridos.",
+  fueraDeAlcance:
+    "El débito automático mensual de los aportes (cada aporte se dispara a mano); el retiro o rescate del dinero de un plan de ahorro; el pago de intereses sobre el ahorro (su tasa es informativa); el vencimiento automático de un depósito y su renovación; la capitalización de intereses (todo el interés es simple); penalidades por cancelación anticipada; e impuestos.",
+
+  endpoints: [
+    { ruta: "GET /api/v2/ahorros", rf: "RF-G5-01", desc: "Lista planes de ahorro, por titular y/o estado." },
+    { ruta: "POST /api/v2/ahorros", rf: "RF-G5-02", desc: "Crea un plan de ahorro programado." },
+    { ruta: "GET /api/v2/ahorros/{id}", rf: "RF-G5-03", desc: "Devuelve el detalle de un plan con lo que falta para la meta." },
+    { ruta: "PUT /api/v2/ahorros/{id}", rf: "RF-G5-04", desc: "Reemplaza las condiciones de un plan activo." },
+    { ruta: "DELETE /api/v2/ahorros/{id}", rf: "RF-G5-05", desc: "Da de baja un plan de ahorro." },
+    { ruta: "POST /api/v2/ahorros/{id}/aportar", rf: "RF-G5-06", desc: "Aporta al plan debitando la cuenta asociada." },
+    { ruta: "GET /api/v2/depositos", rf: "RF-G5-07", desc: "Lista depósitos a plazo, por titular y/o estado." },
+    { ruta: "POST /api/v2/depositos", rf: "RF-G5-08", desc: "Constituye un depósito a plazo debitando una cuenta." },
+    { ruta: "GET /api/v2/depositos/{id}", rf: "RF-G5-09", desc: "Devuelve el detalle de un depósito con su interés proyectado." },
+    { ruta: "POST /api/v2/depositos/{id}/cancelar", rf: "RF-G5-10", desc: "Cancela anticipadamente y acredita capital más interés." },
+    { ruta: "POST /api/v2/g5/auth/token", rf: "RF-G5-TK", desc: "Emite el token JWT del grupo." },
+  ],
+
+  precondiciones: [
+    "Ambos productos se alimentan de una cuenta: para aportar o constituir un depósito se necesita una cuenta `activa` con saldo suficiente. Una cuenta recién abierta nace en cero: hay que fondearla con `POST /api/v2/cuentas/{id}/movimientos` (tipo `credito`).",
+    "Los endpoints de cuentas (`/api/v2/cuentas/**`) pertenecen al Grupo 1, pero este módulo los usa para preparar datos y para verificar saldos y movimientos después de cada operación.",
+    "Datos sembrados: planes de ahorro 1 a 4 en `activo`, el 5 en `completado` y el 6 en `cancelado`; depósitos 1 a 3 en `activo`, 4 y 5 en `vencido` y el 6 en `cancelado`.",
+    "**El resultado de cancelar un depósito depende de la fecha de ejecución**: el interés se prorratea por los días transcurridos desde su inicio. Un depósito creado y cancelado el mismo día genera interés cero. Para probar un interés mayor que cero hay que usar un depósito sembrado (con fecha de inicio pasada) o preparar la `fecha_inicio` por el sandbox SQL, y calcular el valor esperado a partir de la fecha del día.",
+  ],
+
+  tablas: [
+    {
+      nombre: "ahorros",
+      desc: "Planes de ahorro programado. `estado` es el estado de negocio y `activo` la marca de baja lógica.",
+      columnas: [
+        ["`id`", "`bigserial`, clave primaria"],
+        ["`usuario_id`", "`bigint`, obligatorio, referencia a `usuarios(id)`"],
+        ["`cuenta_id`", "`bigint`, obligatorio, referencia a `cuentas(id)`: cuenta de la que se debitan los aportes"],
+        ["`nombre_meta`", "`text`, obligatorio"],
+        ["`meta_monto`", "`numeric(14,2)`, obligatorio, mayor que cero"],
+        ["`aporte_mensual`", "`numeric(14,2)`, obligatorio, mayor que cero"],
+        ["`saldo_acumulado`", "`numeric(14,2)`, obligatorio, por defecto 0; mayor o igual a cero"],
+        ["`tasa_anual`", "`numeric(5,2)`, obligatoria, por defecto 0; mayor o igual a cero. Informativa"],
+        ["`estado`", "`text`, uno de `activo` / `completado` / `cancelado`; por defecto `activo`"],
+        ["`activo`", "`boolean`, obligatorio, por defecto `true`; `false` = dado de baja"],
+        ["`created_at`", "`timestamptz`, por defecto `now()`"],
+      ],
+    },
+    {
+      nombre: "depositos",
+      desc: "Depósitos a plazo fijo. Sus condiciones son inmutables una vez constituido.",
+      columnas: [
+        ["`id`", "`bigserial`, clave primaria"],
+        ["`usuario_id`", "`bigint`, obligatorio, referencia a `usuarios(id)`"],
+        ["`cuenta_id`", "`bigint`, obligatorio, referencia a `cuentas(id)`: cuenta de la que sale y a la que vuelve el dinero"],
+        ["`monto`", "`numeric(14,2)`, obligatorio, mayor que cero: el capital"],
+        ["`tasa_anual`", "`numeric(5,2)`, obligatoria, mayor o igual a cero"],
+        ["`plazo_dias`", "`integer`, obligatorio, entre 30 y 1095"],
+        ["`fecha_inicio`", "`date`, obligatoria, por defecto la fecha del día"],
+        ["`fecha_vencimiento`", "`date`, obligatoria, posterior a la fecha de inicio"],
+        ["`interes_generado`", "`numeric(14,2)`, obligatorio, por defecto 0; se completa al cancelar"],
+        ["`estado`", "`text`, uno de `activo` / `vencido` / `cancelado`; por defecto `activo`"],
+        ["`activo`", "`boolean`, por defecto `true`; ningún endpoint lo cambia"],
+        ["`created_at`", "`timestamptz`, por defecto `now()`"],
+      ],
+    },
+  ],
+
+  notaDatos:
+    "Campos calculados que la API agrega a las respuestas y que no existen como columnas: en un plan de ahorro, `falta_para_meta` = meta − saldo acumulado (negativo si se superó la meta); en un depósito, `interes_proyectado` = monto × tasa / 100 × plazo en días / 365, redondeado a dos decimales, y `dias_restantes` = fecha de vencimiento − fecha del día (negativo si ya pasó). Todo el interés es simple, con base de 365 días. Ejemplo: 5.000.000 al 11,5 % anual por 180 días proyecta un interés de 283.561,64.",
+
+  rf: [
+    {
+      id: "RF-G5-01",
+      nombre: "Listar planes de ahorro",
+      endpoint: "GET /api/v2/ahorros",
+      descripcion: "Devuelve los planes de ahorro vigentes, con la posibilidad de acotar por titular y por estado.",
+      entradas: [
+        "`usuarioId` (opcional, por query): número entero positivo.",
+        "`estado` (opcional, por query): `activo`, `completado` o `cancelado`.",
+      ],
+      reglas: [
+        "Devuelve únicamente planes no dados de baja (`activo = true`), en cualquier estado de negocio.",
+        "Los dos filtros se combinan entre sí.",
+        "Máximo 100 filas, ordenadas por identificador ascendente.",
+      ],
+      respuesta: [
+        "`200 OK` con `data` como arreglo de planes; cada elemento incluye las columnas de la tabla más el campo calculado `falta_para_meta`.",
+      ],
+      errores: [
+        ["`VALIDATION_ERROR`", "400", "`usuarioId` no es un entero positivo, o `estado` no es uno de los tres valores permitidos."],
+      ],
+      fuente: "`app/api/v2/ahorros/route.ts`",
+      criterios: [
+        "Al listar sin filtros, la respuesta es 200 y cada elemento incluye `falta_para_meta`.",
+        "Al filtrar por `estado=completado`, todos los elementos devueltos tienen `estado` igual a `completado`.",
+        "Para cada plan devuelto, `falta_para_meta` es igual a `meta_monto` menos `saldo_acumulado`.",
+        "Al enviar `estado=pausado`, la respuesta es 400 `VALIDATION_ERROR`.",
+      ],
+    },
+    {
+      id: "RF-G5-02",
+      nombre: "Crear un plan de ahorro",
+      endpoint: "POST /api/v2/ahorros",
+      descripcion: "Crea un plan de ahorro programado con una meta y un aporte mensual de referencia. El plan arranca sin saldo.",
+      entradas: [
+        "`usuarioId` (obligatorio): número entero positivo del titular.",
+        "`cuentaId` (obligatorio): número entero positivo de la cuenta de la que se debitarán los aportes.",
+        "`nombreMeta` (obligatorio): texto no vacío.",
+        "`metaMonto` (obligatorio): número mayor que cero, como número JSON.",
+        "`aporteMensual` (obligatorio): número mayor que cero, como número JSON.",
+        "`tasaAnual` (opcional): número entre 0 y 999,99; si se omite se guarda 0.",
+      ],
+      reglas: [
+        "El plan nace con `estado = 'activo'` y `saldo_acumulado = 0`. **Crear el plan no debita la cuenta**: el saldo solo crece con aportes (RF-G5-06).",
+        "El titular y la cuenta deben existir; un id inexistente es rechazado por la clave foránea.",
+        "**No se valida que la cuenta pertenezca al titular, ni su estado ni su moneda**: esas condiciones recién se verifican al aportar.",
+        "**No se valida que el aporte mensual sea menor o igual a la meta**, ni un mínimo de meta, ni un plazo máximo.",
+        "La tasa anual se guarda pero no produce ningún efecto: el sandbox no liquida intereses sobre el ahorro.",
+      ],
+      respuesta: ["`201 Created` con `data` conteniendo el plan creado, incluido `falta_para_meta` (igual a la meta)."],
+      errores: [
+        [
+          "`VALIDATION_ERROR`",
+          "400",
+          "Falta un campo obligatorio, `nombreMeta` está vacío, la meta o el aporte no son números positivos, la tasa está fuera de rango, o el titular o la cuenta no existen.",
+        ],
+      ],
+      fuente: "`app/api/v2/ahorros/route.ts`",
+      criterios: [
+        "Al crear un plan con meta 1.000.000 y aporte 250.000, la respuesta es 201, `data.estado` es `activo`, `data.saldo_acumulado` es `\"0.00\"` y `data.falta_para_meta` es `\"1000000.00\"`.",
+        "Tras crear el plan, el saldo de la cuenta asociada es el mismo que antes.",
+        "Al crear sin `tasaAnual`, la respuesta es 201 y `data.tasa_anual` es `\"0.00\"`.",
+        "Al crear sin `cuentaId`, o con `metaMonto` igual a 0, la respuesta es 400 `VALIDATION_ERROR`.",
+        "Al crear con una `cuentaId` inexistente, la respuesta es 400 `VALIDATION_ERROR` y no se crea ningún plan.",
+      ],
+    },
+    {
+      id: "RF-G5-03",
+      nombre: "Consultar un plan de ahorro",
+      endpoint: "GET /api/v2/ahorros/{id}",
+      descripcion: "Devuelve el detalle de un plan: meta, aporte, saldo acumulado, lo que falta y estado.",
+      entradas: ["`id` (obligatorio, en la ruta): número entero positivo."],
+      reglas: ["Si no existe o está dado de baja, responde 404 con el mensaje \"Plan de ahorro no encontrado.\"."],
+      respuesta: ["`200 OK` con `data` conteniendo el plan completo y `falta_para_meta`."],
+      errores: [
+        ["`NOT_FOUND`", "404", "No existe un plan vigente con ese identificador."],
+        ["`VALIDATION_ERROR`", "400", "El identificador no es un entero positivo."],
+      ],
+      fuente: "`app/api/v2/ahorros/[id]/route.ts`",
+      criterios: [
+        "Dado un plan existente, al consultarlo la respuesta es 200 y `data.id` coincide con el solicitado.",
+        "Al consultar un identificador inexistente, la respuesta es 404 `NOT_FOUND` con el mensaje \"Plan de ahorro no encontrado.\".",
+        "Al consultar con un identificador no numérico, la respuesta es 400 `VALIDATION_ERROR`.",
+      ],
+    },
+    {
+      id: "RF-G5-04",
+      nombre: "Modificar un plan de ahorro",
+      endpoint: "PUT /api/v2/ahorros/{id}",
+      descripcion: "Reemplaza nombre, meta, aporte mensual y tasa de un plan que sigue activo.",
+      entradas: [
+        "`id` (obligatorio, en la ruta): número entero positivo.",
+        "`nombreMeta` (obligatorio): texto no vacío.",
+        "`metaMonto` y `aporteMensual` (obligatorios): números mayores que cero.",
+        "`tasaAnual` (opcional): número entre 0 y 999,99.",
+      ],
+      reglas: [
+        "Solo se modifica un plan en estado `activo`. En otro estado responde 409 con el mensaje \"Un plan 'completado' ya no puede modificarse.\" (con el estado que corresponda).",
+        "La nueva meta no puede ser menor al saldo ya acumulado: responde 409 con el mensaje \"La meta no puede ser menor al saldo ya acumulado.\".",
+        "Es un reemplazo: **omitir `tasaAnual` la vuelve a 0**, aunque antes tuviera otro valor.",
+        "El saldo acumulado, el estado, el titular y la cuenta no forman parte del cuerpo; si se envían, se ignoran.",
+        "**Bajar la meta hasta igualar el saldo acumulado no completa el plan**: el estado solo cambia a `completado` con un aporte.",
+      ],
+      respuesta: ["`200 OK` con `data` conteniendo el plan ya actualizado y `falta_para_meta` recalculado."],
+      errores: [
+        ["`NOT_FOUND`", "404", "No existe un plan vigente con ese identificador."],
+        ["`CONFLICT`", "409", "El plan no está activo, o la nueva meta es menor al saldo acumulado."],
+        ["`VALIDATION_ERROR`", "400", "Falta un campo obligatorio o alguno está fuera de rango."],
+      ],
+      fuente: "`app/api/v2/ahorros/[id]/route.ts`",
+      criterios: [
+        "Dado un plan activo, al cambiar su `metaMonto` la respuesta es 200 y `data.falta_para_meta` refleja la nueva meta.",
+        "Dado un plan con saldo acumulado 500.000, al fijar una meta de 400.000 la respuesta es 409 `CONFLICT` y la meta no cambia.",
+        "Dado un plan `completado` o `cancelado`, al intentar modificarlo la respuesta es 409 `CONFLICT`.",
+        "Dado un plan con `tasa_anual` 6,50, al modificarlo sin enviar `tasaAnual` la respuesta es 200 y `data.tasa_anual` es `\"0.00\"`.",
+        "El `saldo_acumulado` no cambia tras la modificación.",
+      ],
+    },
+    {
+      id: "RF-G5-05",
+      nombre: "Dar de baja un plan de ahorro",
+      endpoint: "DELETE /api/v2/ahorros/{id}",
+      descripcion: "Da de baja lógica un plan de ahorro, quitándolo de los listados.",
+      entradas: ["`id` (obligatorio, en la ruta): número entero positivo."],
+      reglas: [
+        "Marca `activo = false` sin ninguna validación previa: no mira el estado ni el saldo acumulado.",
+        "**El dinero acumulado no se devuelve a la cuenta**: un plan con saldo se puede dar de baja y ese saldo queda inaccesible.",
+        "La baja no cambia el `estado` de negocio del plan.",
+      ],
+      respuesta: ["`204 No Content`, sin cuerpo."],
+      errores: [
+        ["`NOT_FOUND`", "404", "No existe un plan vigente con ese identificador."],
+        ["`VALIDATION_ERROR`", "400", "El identificador no es un entero positivo."],
+      ],
+      fuente: "`app/api/v2/ahorros/[id]/route.ts`",
+      criterios: [
+        "Dado un plan sin aportes, al darlo de baja la respuesta es 204 sin cuerpo.",
+        "Tras la baja, RF-G5-03 responde 404 y el plan deja de aparecer en RF-G5-01.",
+        "Dado un plan con saldo acumulado, al darlo de baja la respuesta es 204 y el saldo de la cuenta asociada no cambia.",
+        "Dar de baja dos veces el mismo plan devuelve 204 la primera vez y 404 la segunda.",
+      ],
+    },
+    {
+      id: "RF-G5-06",
+      nombre: "Aportar a un plan de ahorro",
+      endpoint: "POST /api/v2/ahorros/{id}/aportar",
+      descripcion:
+        "Registra un aporte: debita la cuenta asociada, suma al saldo acumulado del plan y, si se alcanza la meta, deja el plan completado.",
+      entradas: [
+        "`id` (obligatorio, en la ruta): número entero positivo.",
+        "`monto` (opcional, en el cuerpo): número mayor que cero, como número JSON. Si se omite —o la request no lleva cuerpo— se aporta el `aporte_mensual` del plan.",
+      ],
+      reglas: [
+        "El plan debe estar en estado `activo`. En otro estado responde 409 con el mensaje \"El plan está 'completado': no admite aportes.\" (con el estado que corresponda).",
+        "La cuenta asociada debe existir y no estar dada de baja (si no, 404 \"Cuenta asociada al plan no encontrada.\") y estar `activa` (si no, 409 \"La cuenta asociada está bloqueada: no admite débitos.\").",
+        "El saldo de la cuenta debe alcanzar para el aporte: si no, 409 \"Saldo insuficiente en la cuenta para el aporte.\".",
+        "Si todo es válido: la cuenta baja en el importe, el saldo acumulado sube en el mismo importe, y se registra en la cuenta un movimiento `debito` con `referencia_tipo = 'ahorro'`, `referencia_id` igual al id del plan y descripción \"Aporte a meta \" seguido del nombre.",
+        "Cuando el saldo acumulado alcanza o supera la meta, el plan pasa a `completado` y deja de admitir aportes y cambios.",
+        "**El aporte puede superar lo que falta**: no se recorta al tope de la meta, y `falta_para_meta` queda negativo.",
+        "No hay control de frecuencia: se pueden hacer varios aportes seguidos el mismo día.",
+        "La operación es atómica: cuenta y plan se mueven juntos o no se mueven.",
+      ],
+      respuesta: [
+        "`201 Created` con `data` conteniendo el plan actualizado (con `falta_para_meta`) y, anidada en `data.cuenta`, la cuenta con su saldo ya debitado.",
+      ],
+      errores: [
+        ["`NOT_FOUND`", "404", "No existe el plan, o su cuenta asociada fue dada de baja."],
+        ["`CONFLICT`", "409", "El plan no está activo, la cuenta no está activa, o el saldo de la cuenta no alcanza."],
+        ["`VALIDATION_ERROR`", "400", "El `monto` enviado es cero, negativo o no es un número JSON."],
+      ],
+      fuente: "`app/api/v2/ahorros/[id]/aportar/route.ts`",
+      criterios: [
+        "Dado un plan con aporte mensual 250.000 y una cuenta con saldo 1.000.000, al aportar sin cuerpo la respuesta es 201, `data.saldo_acumulado` es `\"250000.00\"` y `data.cuenta.saldo` es `\"750000.00\"`.",
+        "Al aportar enviando `monto` 100.000, el saldo acumulado sube exactamente 100.000, sin importar el aporte mensual del plan.",
+        "Tras un aporte, el extracto de la cuenta tiene un movimiento `debito` nuevo con `referencia_tipo` igual a `ahorro` y `referencia_id` igual al id del plan.",
+        "Dado un plan con meta 1.000.000 y saldo 750.000, al aportar 250.000 la respuesta es 201, `data.estado` es `completado` y `data.falta_para_meta` es `\"0.00\"`.",
+        "Dado un plan al que le faltan 100.000, al aportar 300.000 la respuesta es 201, el plan queda `completado` y `data.falta_para_meta` es `\"-200000.00\"`.",
+        "Dado un plan `completado`, al aportar la respuesta es 409 `CONFLICT` y la cuenta no se debita.",
+        "Dada una cuenta con saldo menor al aporte, la respuesta es 409 `CONFLICT` con el mensaje \"Saldo insuficiente en la cuenta para el aporte.\" y ni el plan ni la cuenta cambian.",
+        "Dado un plan cuya cuenta está `bloqueada`, al aportar la respuesta es 409 `CONFLICT`.",
+        "Al enviar `monto` igual a 0 o negativo, la respuesta es 400 `VALIDATION_ERROR`.",
+      ],
+    },
+    {
+      id: "RF-G5-07",
+      nombre: "Listar depósitos a plazo",
+      endpoint: "GET /api/v2/depositos",
+      descripcion: "Devuelve los depósitos a plazo del sandbox, con la posibilidad de acotar por titular y por estado.",
+      entradas: [
+        "`usuarioId` (opcional, por query): número entero positivo.",
+        "`estado` (opcional, por query): `activo`, `vencido` o `cancelado`.",
+      ],
+      reglas: [
+        "Los dos filtros se combinan entre sí.",
+        "El filtro `estado=vencido` usa el estado guardado, no la fecha: un depósito `activo` con fecha de vencimiento pasada no aparece como vencido.",
+        "Máximo 100 filas, ordenadas por identificador ascendente.",
+      ],
+      respuesta: [
+        "`200 OK` con `data` como arreglo de depósitos; cada elemento incluye las columnas de la tabla más los campos calculados `interes_proyectado` y `dias_restantes`.",
+      ],
+      errores: [
+        ["`VALIDATION_ERROR`", "400", "`usuarioId` no es un entero positivo, o `estado` no es uno de los tres valores permitidos."],
+      ],
+      fuente: "`app/api/v2/depositos/route.ts`",
+      criterios: [
+        "Al listar sin filtros, la respuesta es 200 y cada elemento incluye `interes_proyectado` y `dias_restantes`.",
+        "Al filtrar por `estado=activo`, todos los elementos devueltos tienen `estado` igual a `activo`.",
+        "Al filtrar por un titular, todos los elementos devueltos tienen ese `usuario_id`.",
+        "Al enviar `estado=renovado`, la respuesta es 400 `VALIDATION_ERROR`.",
+      ],
+    },
+    {
+      id: "RF-G5-08",
+      nombre: "Constituir un depósito a plazo",
+      endpoint: "POST /api/v2/depositos",
+      descripcion:
+        "Constituye un depósito a plazo fijo: debita el capital de una cuenta y lo deja inmovilizado hasta el vencimiento o hasta su cancelación anticipada.",
+      entradas: [
+        "`usuarioId` (obligatorio): número entero positivo del titular.",
+        "`cuentaId` (obligatorio): número entero positivo de la cuenta de la que sale el capital.",
+        "`monto` (obligatorio): número mayor que cero, como número JSON.",
+        "`tasaAnual` (obligatorio): número entre 0 y 999,99, como número JSON. Una tasa de 0 es válida.",
+        "`plazoDias` (obligatorio): número entero entre 30 y 1095, como número JSON.",
+      ],
+      reglas: [
+        "La cuenta debe existir y no estar dada de baja (si no, 404 \"Cuenta no encontrada.\") y estar `activa` (si no, 409 \"La cuenta está bloqueada: no admite débitos.\").",
+        "El saldo de la cuenta debe alcanzar: si no, 409 \"Saldo insuficiente para constituir el depósito.\". Depositar exactamente el saldo es válido.",
+        "Si todo es válido: la cuenta baja en el importe, se crea el depósito con `estado = 'activo'`, `fecha_inicio` igual a la fecha del día, `fecha_vencimiento` igual a la fecha del día más el plazo, e `interes_generado = 0`.",
+        "Se registra en la cuenta un movimiento `debito` con `referencia_tipo = 'deposito'`, `referencia_id` igual al id del depósito y descripción \"Constitución de depósito a plazo\".",
+        "El interés proyectado es interés simple con base 365: monto × tasa / 100 × plazo / 365.",
+        "**No se valida que la cuenta pertenezca al titular indicado**, ni hay monto mínimo de negocio. El depósito no guarda moneda: toma implícitamente la de la cuenta.",
+        "La operación es atómica: cuenta y depósito se crean juntos o no se crea nada.",
+      ],
+      respuesta: [
+        "`201 Created` con `data` conteniendo el depósito creado (con `interes_proyectado` y `dias_restantes`) y, anidada en `data.cuenta`, la cuenta con su saldo ya debitado.",
+      ],
+      errores: [
+        [
+          "`VALIDATION_ERROR`",
+          "400",
+          "Falta un campo obligatorio, el monto no es positivo, la tasa está fuera de rango, el plazo no es un entero entre 30 y 1095, algún valor numérico llegó como texto, o el titular no existe.",
+        ],
+        ["`NOT_FOUND`", "404", "No existe una cuenta vigente con ese identificador."],
+        ["`CONFLICT`", "409", "La cuenta no está activa, o su saldo no alcanza."],
+      ],
+      fuente: "`app/api/v2/depositos/route.ts`",
+      criterios: [
+        "Dada una cuenta con saldo 5.000.000, al constituir un depósito de 2.000.000 al 10 % por 90 días la respuesta es 201, `data.estado` es `activo`, `data.interes_proyectado` es `\"49315.07\"`, `data.dias_restantes` es 90 y `data.cuenta.saldo` es `\"3000000.00\"`.",
+        "La `fecha_inicio` devuelta es la fecha del día y la `fecha_vencimiento` es exactamente `plazoDias` días posterior, ambas en formato `YYYY-MM-DD`.",
+        "Tras constituir, el extracto de la cuenta tiene un movimiento `debito` nuevo con `referencia_tipo` igual a `deposito` y `referencia_id` igual al id del depósito.",
+        "Al constituir con `plazoDias` igual a 29 o 1096, la respuesta es 400 `VALIDATION_ERROR`; con 30 y con 1095 (los límites), es 201.",
+        "Al constituir por un importe mayor al saldo, la respuesta es 409 `CONFLICT` con el mensaje \"Saldo insuficiente para constituir el depósito.\" y el saldo no cambia.",
+        "Al constituir sobre una cuenta `bloqueada`, la respuesta es 409 `CONFLICT`.",
+        "Al constituir sobre una cuenta inexistente, la respuesta es 404 `NOT_FOUND` con el mensaje \"Cuenta no encontrada.\".",
+        "Al constituir con `tasaAnual` igual a 0, la respuesta es 201 y `data.interes_proyectado` es `\"0.00\"`.",
+      ],
+    },
+    {
+      id: "RF-G5-09",
+      nombre: "Consultar un depósito a plazo",
+      endpoint: "GET /api/v2/depositos/{id}",
+      descripcion: "Devuelve el detalle de un depósito: capital, tasa, plazo, fechas, interés proyectado, días restantes y estado.",
+      entradas: ["`id` (obligatorio, en la ruta): número entero positivo."],
+      reglas: [
+        "Si no existe, responde 404 con el mensaje \"Depósito no encontrado.\".",
+        "`dias_restantes` se recalcula en cada consulta contra la fecha del día, y puede ser negativo.",
+        "`interes_proyectado` es siempre el del plazo completo, también en un depósito ya cancelado; lo efectivamente pagado está en `interes_generado`.",
+        "Un depósito no se puede modificar ni dar de baja: `PUT` y `DELETE` sobre esta ruta responden 405. Para deshacerlo existe la cancelación (RF-G5-10).",
+      ],
+      respuesta: ["`200 OK` con `data` conteniendo el depósito completo, `interes_proyectado` y `dias_restantes`."],
+      errores: [
+        ["`NOT_FOUND`", "404", "No existe un depósito con ese identificador."],
+        ["`VALIDATION_ERROR`", "400", "El identificador no es un entero positivo."],
+      ],
+      fuente: "`app/api/v2/depositos/[id]/route.ts`",
+      criterios: [
+        "Dado un depósito recién constituido, al consultarlo la respuesta es 200 y sus datos coinciden con los devueltos al crearlo.",
+        "Dado el depósito sembrado 1 (5.000.000 al 11,5 % por 180 días), `data.interes_proyectado` es `\"283561.64\"`.",
+        "Al consultar un identificador inexistente, la respuesta es 404 `NOT_FOUND` con el mensaje \"Depósito no encontrado.\".",
+        "Al enviar `PUT` o `DELETE` sobre un depósito existente, la respuesta es 405.",
+      ],
+    },
+    {
+      id: "RF-G5-10",
+      nombre: "Cancelar anticipadamente un depósito",
+      endpoint: "POST /api/v2/depositos/{id}/cancelar",
+      descripcion:
+        "Precancela un depósito activo: acredita en la cuenta el capital más el interés proporcional a los días efectivamente transcurridos, y deja el depósito cancelado.",
+      entradas: ["`id` (obligatorio, en la ruta): número entero positivo. No lleva cuerpo."],
+      reglas: [
+        "Solo se cancela un depósito en estado `activo`. En otro estado responde 409 con el mensaje \"El depósito ya está 'cancelado'.\" (con el estado que corresponda).",
+        "Los días transcurridos son la fecha del día menos la fecha de inicio, con un mínimo de 0 y un máximo igual al plazo pactado.",
+        "El interés prorrateado es monto × tasa / 100 × días transcurridos / 365, redondeado a dos decimales. No hay penalidad por cancelar antes.",
+        "Un depósito cancelado el mismo día en que se constituyó genera interés 0 y devuelve exactamente el capital.",
+        "Un depósito `activo` cuya fecha de vencimiento ya pasó se cancela cobrando el interés del plazo completo, nunca más.",
+        "La cuenta asociada recibe capital más interés; se registra en ella un movimiento `credito` por ese total, con `referencia_tipo = 'deposito'` y descripción \"Cancelación anticipada de depósito\".",
+        "El depósito queda con `estado = 'cancelado'` e `interes_generado` igual al interés pagado. Cancelar es definitivo.",
+        "Si la cuenta asociada fue dada de baja, responde 404 con el mensaje \"Cuenta asociada al depósito no encontrada.\" y el depósito sigue activo.",
+        "**No se valida el estado de la cuenta**: el dinero se acredita aunque la cuenta esté `bloqueada` o `cerrada`.",
+      ],
+      respuesta: [
+        "`200 OK` con `data` conteniendo el depósito cancelado, el campo `dias_transcurridos` y, anidada en `data.cuenta`, la cuenta con su saldo ya acreditado. Esta respuesta no incluye `interes_proyectado` ni `dias_restantes`.",
+      ],
+      errores: [
+        ["`NOT_FOUND`", "404", "No existe el depósito, o su cuenta asociada fue dada de baja."],
+        ["`CONFLICT`", "409", "El depósito no está activo."],
+        ["`VALIDATION_ERROR`", "400", "El identificador no es un entero positivo."],
+      ],
+      fuente: "`app/api/v2/depositos/[id]/cancelar/route.ts`",
+      criterios: [
+        "Dado un depósito constituido hoy por 2.000.000, al cancelarlo la respuesta es 200, `data.estado` es `cancelado`, `data.dias_transcurridos` es 0, `data.interes_generado` es `\"0.00\"` y el saldo de la cuenta vuelve al valor previo a la constitución.",
+        "Tras cancelar, el extracto de la cuenta tiene un movimiento `credito` nuevo por capital más interés, con `referencia_tipo` igual a `deposito`.",
+        "Dado un depósito activo con fecha de inicio pasada, el `interes_generado` es igual a monto × tasa / 100 × `dias_transcurridos` / 365 redondeado a dos decimales, y la cuenta recibe capital más ese interés.",
+        "Dado un depósito cuyo plazo ya se cumplió, `data.dias_transcurridos` no supera el `plazo_dias` y el interés es igual al proyectado.",
+        "Al cancelar por segunda vez el mismo depósito, la respuesta es 409 `CONFLICT` y la cuenta no vuelve a acreditarse.",
+        "Dados los depósitos sembrados en estado `vencido`, al cancelarlos la respuesta es 409 `CONFLICT`.",
+        "Al cancelar un depósito inexistente, la respuesta es 404 `NOT_FOUND` con el mensaje \"Depósito no encontrado.\".",
+      ],
+    },
+    rfToken(5, "c2_g05_ahorros", 1),
+  ],
+
+  web: {
+    pantallas: [
+      [
+        "`/v2/ahorros` — Ahorro programado",
+        "Tabla con meta, titular, avance y estado; filtros por titular y por estado y búsqueda por nombre de la meta. Ejecuta RF-G5-01.",
+      ],
+      [
+        "`/v2/ahorros/new` — Nueva meta de ahorro",
+        "Formulario con titular, cuenta de débito, nombre, meta, aporte mensual y tasa, con la proyección de meses y fecha estimada para llegar a la meta. Ejecuta RF-G5-02.",
+      ],
+      [
+        "`/v2/ahorros/{id}` — Detalle de la meta",
+        "Muestra acumulado, meta, lo que falta, barra de avance y cuenta de débito; mientras el plan está activo permite aportar (RF-G5-06) y editar (RF-G5-04); también eliminar (RF-G5-05).",
+      ],
+      [
+        "`/v2/depositos` — Depósitos a plazo",
+        "Tabla con número, titular, monto, tasa, vencimiento y estado; filtros por titular y por estado. Ejecuta RF-G5-07.",
+      ],
+      [
+        "`/v2/depositos/new` — Constituir depósito a plazo",
+        "Formulario con titular, cuenta, monto, plazo y tasa, con la vista previa del interés, la fecha de vencimiento y el total a cobrar. Ejecuta RF-G5-08.",
+      ],
+      [
+        "`/v2/depositos/{id}` — Detalle del depósito",
+        "Muestra capital, tasa, interés, fechas, días para el vencimiento y estado, y permite cancelar anticipadamente con una confirmación que anticipa el interés estimado (RF-G5-10). Ejecuta RF-G5-09.",
+      ],
+    ],
+    notas: [
+      "**Regla de UI:** ambos productos solo se ofrecen sobre cuentas activas en guaraníes del titular. La API acepta cualquier cuenta existente, incluso en dólares o de otro cliente.",
+      "**Regla de UI (ahorro):** la meta mínima es de 100.000 guaraníes, el aporte mensual no puede superar la meta, y el plan no puede tardar más de 120 meses en alcanzarla con ese aporte. El nombre de la meta lleva entre 3 y 40 caracteres. La API solo exige valores positivos y un nombre no vacío.",
+      "**Regla de UI (ahorro):** un plan activo con dinero ahorrado no se puede eliminar. La API lo da de baja igual.",
+      "**Regla de UI (depósito):** el monto mínimo es de 1.000.000 de guaraníes y el plazo se elige de una lista (30, 60, 90, 180, 365, 730 o 1095 días). La API acepta cualquier monto positivo y cualquier plazo entero de 30 a 1095.",
+      "**Regla de UI (depósito):** al elegir un plazo la pantalla sugiere una tasa de un tarifario (del 3,5 % a 30 días al 8 % a 1095 días), que el usuario puede editar. La API no tiene tarifario: acepta la tasa que se le envíe.",
+      "El aporte o el depósito por un importe mayor al saldo de la cuenta se rechaza en el navegador antes de llegar a la API.",
+      "Al editar un plan la pantalla envía siempre la tasa, para evitar que la API la reinicie a 0.",
+      "La pantalla avisa cuando un aporte supera lo que falta para la meta, pero lo deja enviar: el plan queda completado con excedente.",
+    ],
+  },
+
+  anexo: [
+    {
+      norma: "Reglamentación del BCP sobre captación de depósitos de ahorro y a plazo",
+      expectativa: "Un depósito a plazo debe instrumentarse con capital, tasa, plazo y fecha de vencimiento ciertos, e informarse al depositante.",
+      estado: "Cubierto: el depósito guarda esas condiciones, son inmutables y la API devuelve además el interés proyectado.",
+    },
+    {
+      norma: "Ley 2334/03 de Garantía de Depósitos",
+      expectativa: "Los depósitos del público están cubiertos hasta un tope por el Fondo de Garantía de Depósitos, lo que exige identificar al titular.",
+      estado: "No implementado: el sandbox no modela la garantía, y no valida que la cuenta del depósito pertenezca al titular declarado.",
+    },
+    {
+      norma: "Normativa del BCP sobre transparencia de tasas pasivas",
+      expectativa: "La tasa ofrecida debe publicarse y aplicarse según el tarifario vigente de la entidad.",
+      estado: "No implementado en la API: acepta cualquier tasa hasta 999,99 %; el tarifario existe solo como sugerencia en la pantalla web.",
+    },
+    {
+      norma: "Ley 1334/98 de Defensa del Consumidor (SEDECO), deber de información",
+      expectativa: "El cliente debe conocer de antemano las condiciones de cancelación anticipada y el interés que percibirá.",
+      estado: "Parcial: la web anticipa el interés estimado antes de confirmar la cancelación; la API no expone una simulación previa.",
+    },
+    {
+      norma: "Buenas prácticas de productos de ahorro programado",
+      expectativa: "El dinero aportado debe poder rescatarse, y el plan debe devengar el interés pactado.",
+      estado: "No implementado: no hay rescate del saldo acumulado ni liquidación de intereses, y dar de baja un plan no devuelve el dinero.",
+    },
+  ],
+
+  brechas: [
+    "El dinero de un plan de ahorro no se puede retirar: no existe rescate ni al completar la meta ni antes. Lo aportado sale de la cuenta y no vuelve.",
+    "`DELETE /ahorros/{id}` no valida nada: da de baja un plan activo con saldo acumulado, y ese saldo queda inaccesible.",
+    "El estado `cancelado` de un plan de ahorro solo aparece en los datos sembrados: no hay endpoint para cancelar un plan.",
+    "La tasa anual del ahorro es decorativa: no se liquidan intereses sobre el saldo acumulado.",
+    "Un aporte puede superar la meta sin recorte; el excedente queda en el plan y `falta_para_meta` pasa a negativo.",
+    "`PUT /ahorros/{id}` reinicia la tasa a 0 si no se envía, y bajar la meta hasta el saldo acumulado no completa el plan.",
+    "El estado `vencido` de un depósito solo aparece en los datos sembrados: la API no vence depósitos ni acredita el capital al vencimiento. Un depósito pasado de fecha sigue `activo` con `dias_restantes` negativo hasta que alguien lo cancela.",
+    "Los depósitos sembrados en `vencido` no tienen salida: no se pueden cancelar ni cobrar por la API.",
+    "No hay penalidad por cancelación anticipada: se cobra el interés completo de los días transcurridos.",
+    "La cancelación acredita la cuenta sin mirar su estado (bloqueada o cerrada), mientras que la constitución sí lo exige.",
+    "Ni el plan ni el depósito validan que la cuenta pertenezca al titular indicado, y el depósito no guarda moneda: uno constituido desde una cuenta en dólares es indistinguible, en sus propios datos, de uno en guaraníes.",
+    "Si la cuenta asociada a un depósito se da de baja, el depósito queda sin poder cancelarse (404) y el capital inmovilizado.",
+    "No hay control de frecuencia de aportes ni débito automático: el \"aporte mensual\" es solo el importe por defecto.",
+    "No existe control de titularidad: cualquier credencial del curso puede aportar, constituir o cancelar productos de cualquier cliente.",
+  ],
+};

@@ -1,0 +1,6 @@
+usuarioId,cuentaId,monto,plazoDias,tasaAnual,EJEMPLO_a_reemplazar_por_datos_reales_de_sql_select
+1,1,1000,30,10
+1,1,1500,90,8
+2,2,2000,180,9
+3,3,10,30,7
+3,3,5,60,6

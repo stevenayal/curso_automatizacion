@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="rafaelrodi_transferencias" tests="8" time="3.969">
+  <testsuite name="00 - Fixture: cliente aislado con sus cuentas" id="c025f5d9-3083-478f-8521-c5970777b72c" timestamp="2026-10-28T10:00:07.211Z" tests="2" failures="0" errors="0" time="0.162">
+    <testcase name="Cliente aislado creado" time="0.162" classname="00FixtureClienteAisladoConSusCuentas"/>
+    <testcase name="Fixture listo: 6 cuentas del cliente 20" time="0.162" classname="00FixtureClienteAisladoConSusCuentas"/>
+  </testsuite>
+  <testsuite name="BDD 1 - Transferencia entre cuentas propias [@happy-path]" id="38b01274-08a5-4e80-a288-89e5d5be57b8" timestamp="2026-10-28T10:00:07.211Z" tests="5" failures="0" errors="0" time="0.143">
+    <testcase name="Response time is less than 3000ms" time="0.143" classname="Bdd1TransferenciaEntreCuentasPropiasHappyPath"/>
+    <testcase name="Status 201 Created" time="0.143" classname="Bdd1TransferenciaEntreCuentasPropiasHappyPath"/>
+    <testcase name="La transferencia queda registrada en estado exitoso (completada)" time="0.143" classname="Bdd1TransferenciaEntreCuentasPropiasHappyPath"/>
+    <testcase name="Los saldos devueltos reflejan debito y credito" time="0.143" classname="Bdd1TransferenciaEntreCuentasPropiasHappyPath"/>
+    <testcase name="La BD tiene UNA transferencia completada con ese concepto" time="0.143" classname="Bdd1TransferenciaEntreCuentasPropiasHappyPath"/>
+  </testsuite>
+  <testsuite name="BDD 2 - Misma cuenta origen y destino [@negativo]" id="c452dc74-6754-4bdc-9586-da768d94aa35" timestamp="2026-10-28T10:00:07.211Z" tests="5" failures="0" errors="0" time="0.246">
+    <testcase name="Response time is less than 3000ms" time="0.246" classname="Bdd2MismaCuentaOrigenYDestinoNegativo"/>
+    <testcase name="El sistema rechaza la operacion con HTTP 400" time="0.246" classname="Bdd2MismaCuentaOrigenYDestinoNegativo"/>
+    <testcase name="El error es VALIDATION_ERROR y el mensaje es el esperado" time="0.246" classname="Bdd2MismaCuentaOrigenYDestinoNegativo"/>
+    <testcase name="La transferencia NO queda registrada en la BD" time="0.246" classname="Bdd2MismaCuentaOrigenYDestinoNegativo"/>
+    <testcase name="El saldo de la cuenta origen no se modifico" time="0.246" classname="Bdd2MismaCuentaOrigenYDestinoNegativo"/>
+  </testsuite>
+  <testsuite name="BDD 3 - Destino bloqueada [@edge-case]" id="c6c0bf25-e942-42bf-a92a-68fba015417d" timestamp="2026-10-28T10:00:07.211Z" tests="5" failures="0" errors="0" time="0.224">
+    <testcase name="Response time is less than 3000ms" time="0.224" classname="Bdd3DestinoBloqueadaEdgeCase"/>
+    <testcase name="El sistema rechaza la operacion con HTTP 409" time="0.224" classname="Bdd3DestinoBloqueadaEdgeCase"/>
+    <testcase name="El error es CONFLICT y el mensaje es el esperado" time="0.224" classname="Bdd3DestinoBloqueadaEdgeCase"/>
+    <testcase name="El saldo de la cuenta origen no se modifico" time="0.224" classname="Bdd3DestinoBloqueadaEdgeCase"/>
+    <testcase name="La transferencia NO queda registrada en la BD" time="0.224" classname="Bdd3DestinoBloqueadaEdgeCase"/>
+  </testsuite>
+  <testsuite name="BDD 4 - Destino cerrada [@edge-case]" id="51c948ab-32ab-44eb-a89c-fc88d8b46537" timestamp="2026-10-28T10:00:07.211Z" tests="5" failures="0" errors="0" time="0.179">
+    <testcase name="Response time is less than 3000ms" time="0.179" classname="Bdd4DestinoCerradaEdgeCase"/>
+    <testcase name="El sistema rechaza la operacion con HTTP 409" time="0.179" classname="Bdd4DestinoCerradaEdgeCase"/>
+    <testcase name="El error es CONFLICT y el mensaje es el esperado" time="0.179" classname="Bdd4DestinoCerradaEdgeCase"/>
+    <testcase name="El saldo de la cuenta origen no se modifico" time="0.179" classname="Bdd4DestinoCerradaEdgeCase"/>
+    <testcase name="La transferencia NO queda registrada en la BD" time="0.179" classname="Bdd4DestinoCerradaEdgeCase"/>
+  </testsuite>
+  <testsuite name="BDD 5 - Saldo insuficiente [@negativo]" id="e1eafc8e-45d5-4e3a-91d2-aebaa184a453" timestamp="2026-10-28T10:00:07.211Z" tests="5" failures="0" errors="0" time="0.157">
+    <testcase name="Response time is less than 3000ms" time="0.157" classname="Bdd5SaldoInsuficienteNegativo"/>
+    <testcase name="El sistema rechaza la operacion con HTTP 409" time="0.157" classname="Bdd5SaldoInsuficienteNegativo"/>
+    <testcase name="El error es CONFLICT y el mensaje es el esperado" time="0.157" classname="Bdd5SaldoInsuficienteNegativo"/>
+    <testcase name="La transferencia NO queda registrada en la BD" time="0.157" classname="Bdd5SaldoInsuficienteNegativo"/>
+    <testcase name="El saldo de la cuenta origen no se modifico" time="0.157" classname="Bdd5SaldoInsuficienteNegativo"/>
+  </testsuite>
+  <testsuite name="BDD 6 - Destino inexistente [@negativo]" id="e5d2a97e-a935-4ed9-90dc-7e39334cdb16" timestamp="2026-10-28T10:00:07.211Z" tests="5" failures="0" errors="0" time="0.155">
+    <testcase name="Response time is less than 3000ms" time="0.155" classname="Bdd6DestinoInexistenteNegativo"/>
+    <testcase name="El sistema rechaza la operacion con HTTP 404" time="0.155" classname="Bdd6DestinoInexistenteNegativo"/>
+    <testcase name="El error es NOT_FOUND y el mensaje es el esperado" time="0.155" classname="Bdd6DestinoInexistenteNegativo"/>
+    <testcase name="El saldo de la cuenta origen no se modifico" time="0.155" classname="Bdd6DestinoInexistenteNegativo"/>
+    <testcase name="La transferencia NO queda registrada en la BD" time="0.155" classname="Bdd6DestinoInexistenteNegativo"/>
+  </testsuite>
+  <testsuite name="99 - Limpieza del fixture" id="453a3ecf-7eb3-4910-9554-97b16084b095" timestamp="2026-10-28T10:00:07.211Z" tests="2" failures="0" errors="0" time="0.159">
+    <testcase name="Cliente del fixture dado de baja" time="0.159" classname="99LimpiezaDelFixture"/>
+    <testcase name="Cuentas del fixture dadas de baja" time="0.159" classname="99LimpiezaDelFixture"/>
+  </testsuite>
+</testsuites>

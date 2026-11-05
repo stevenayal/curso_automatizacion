@@ -192,7 +192,7 @@ POST /api/v2/depositos
 }
 ```
 
-Se usa `plazoDias` = 15 porque la API solo admite plazos de 30 a 1095 días.
+Se usa `plazoDias` = 29 porque la API solo admite plazos de 30 a 1095 días.
 
 **Validación en BD:**
 
@@ -258,7 +258,7 @@ POST /api/v2/depositos
 | Variable | Uso |
 |---|---|
 | `depositoInexistenteId` | ID que no existe en la BD (por defecto `999999`) |
-| `plazoDiasInvalido` | Plazo fuera del rango permitido de 30 a 1095 días (por defecto `15`) |
+| `plazoDiasInvalido` | Plazo fuera del rango permitido de 30 a 1095 días (por defecto `29`; el escenario 7b usa `plazoDiasInvalidoAlto` = `1096`) |
 | `cuentaSaldoTotalId` | Cuenta de prueba descartable para el escenario 8 (configurar antes de ejecutar) |
 | `usuarioSaldoTotalId` | Titular de esa cuenta; se completa automáticamente en el Pre-request |
 | `montoSaldoTotal` | Saldo leído de la BD; se completa automáticamente en el Pre-request |

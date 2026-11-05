@@ -27,8 +27,9 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (
-    HRFlowable, KeepTogether, PageBreak, Paragraph,
+    HRFlowable, Image, KeepTogether, PageBreak, Paragraph, Preformatted,
     SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 
@@ -86,6 +87,64 @@ def styles():
     }
 
 
+# ─── Criterios leídos del .feature ──────────────────────────────────────────
+# cucumber-js deja de exportar los comentarios en el JSON a partir de la v10,
+# así que los criterios se recuperan leyendo el archivo .feature referenciado
+# por `uri`: se toma el último comentario "# criterio: <texto>" que precede a
+# cada `Scenario`/`Scenario Outline`.
+ID_TAG_RE = re.compile(r"^@[A-Z]+\d*-[A-Z0-9]+-\d+$")
+
+
+def criterios_desde_feature(uri, _cache={}):
+    """Mapea nombre de escenario → criterio documentado en el .feature."""
+    if not uri:
+        return {}
+    if uri in _cache:
+        return _cache[uri]
+
+    mapping = {}
+    try:
+        with open(uri, "r", encoding="utf-8") as fh:
+            pendiente = None
+            for linea in fh:
+                limpia = linea.strip()
+                m = re.match(r"#\s*criterio:\s*(.+)", limpia, re.IGNORECASE)
+                if m:
+                    pendiente = m.group(1).strip()
+                    continue
+                if limpia.startswith("#"):
+                    # un criterio puede continuar en las líneas de comentario siguientes
+                    if pendiente:
+                        cont = limpia.lstrip("#").strip()
+                        if cont:
+                            pendiente = f"{pendiente} {cont}"
+                    continue
+                if not limpia:
+                    continue
+                m = re.match(r"(?:Scenario|Escenario)(?:\s+Outline|\s+Template)?:\s*(.+)",
+                             limpia, re.IGNORECASE)
+                if m:
+                    if pendiente:
+                        mapping[m.group(1).strip()] = pendiente
+                    pendiente = None
+                elif not limpia.startswith("@"):
+                    # cualquier otra línea corta el bloque de comentarios del escenario
+                    pendiente = pendiente if limpia.startswith("Feature") else None
+    except OSError:
+        mapping = {}
+
+    _cache[uri] = mapping
+    return mapping
+
+
+def id_escenario(tags):
+    """Devuelve el tag que funciona como ID de escenario (ej. @G05-LOGIN-001)."""
+    for t in tags:
+        if t and ID_TAG_RE.match(t.replace("@", "@")):
+            return t.lstrip("@")
+    return None
+
+
 def parse_results(path):
     with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -122,22 +181,84 @@ def parse_results(path):
                 m = re.search(r"criterio:\s*(.+)", comment.get("text", ""))
                 if m:
                     criterio = m.group(1).strip()
+            if not criterio:
+                criterio = criterios_desde_feature(feat.get("uri")).get(el.get("name", ""))
+
+            tags = [t.get("name") for t in el.get("tags", [])]
+            escenario_id = id_escenario(tags)
 
             feat_scenarios.append({
                 "name": el.get("name", "(sin nombre)"),
                 "status": status,
-                "tags": [t.get("name") for t in el.get("tags", [])],
+                "tags": tags,
+                "id": escenario_id,
                 "criterio": criterio,
                 "fail_step": failed_step.get("name") if failed_step else None,
                 "fail_msg": (failed_step.get("result", {}).get("error_message", "") or "")[:400]
                             if failed_step else None,
             })
-            trace.append((criterio or "(sin criterio documentado)", feat_name,
-                           el.get("name", ""), status))
+            trace.append((escenario_id or "—", criterio or "(sin criterio documentado)",
+                          feat_name, el.get("name", ""), status))
 
         features.append({"name": feat_name, "scenarios": feat_scenarios})
 
     return features, totals, trace
+
+
+# ─── Evidencia en disco ─────────────────────────────────────────────────────
+# Los hooks BDD guardan cada evidencia como "<ID>-<PASSED|FAILED>-<timestamp>.<ext>":
+# .png para los escenarios de interfaz, .json (última respuesta) para los de API.
+
+EVIDENCIA_RE = re.compile(r"^(?P<id>.+?)-(?P<estado>PASSED|FAILED)-(?P<sello>.+)\.(?P<ext>png|jpg|jpeg|json)$")
+
+
+def evidencias_por_id(directorio):
+    """Mapea ID de escenario → lista de archivos de evidencia, del más reciente al más viejo."""
+    mapping = {}
+    if not directorio or not os.path.isdir(directorio):
+        return mapping
+
+    for nombre in sorted(os.listdir(directorio)):
+        m = EVIDENCIA_RE.match(nombre)
+        if not m:
+            continue
+        mapping.setdefault(m.group("id"), []).append({
+            "path": os.path.join(directorio, nombre),
+            "nombre": nombre,
+            "estado": m.group("estado"),
+            "ext": m.group("ext").lower(),
+        })
+
+    for archivos in mapping.values():
+        archivos.sort(key=lambda a: a["nombre"], reverse=True)
+    return mapping
+
+
+def imagen_ajustada(path, ancho_max):
+    """Devuelve un flowable Image escalado al ancho disponible, conservando la proporción."""
+    ancho_px, alto_px = ImageReader(path).getSize()
+    ancho = min(ancho_max, 150 * mm)
+    alto = ancho * alto_px / float(ancho_px)
+    alto_max = 165 * mm
+    if alto > alto_max:
+        ancho *= alto_max / alto
+        alto = alto_max
+    return Image(path, width=ancho, height=alto)
+
+
+def resumen_json(path, limite=1400):
+    """Texto compacto de una evidencia .json de API."""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            datos = json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+    respuesta = datos.get("ultimaRespuesta", {})
+    cuerpo = json.dumps(respuesta.get("body"), ensure_ascii=False, indent=2)
+    if len(cuerpo) > limite:
+        cuerpo = cuerpo[:limite] + "\n… (truncado)"
+    return 'HTTP {}\n{}'.format(respuesta.get("status", "?"), cuerpo)
 
 
 def veredicto(totals):
@@ -217,18 +338,20 @@ def build_pdf(output, features, totals, trace, args):
     story.append(PageBreak())
     story.append(Paragraph("Matriz de trazabilidad", st["h1"]))
     story.append(Paragraph(
-        "Criterio de aceptación → escenario → resultado. Los criterios se toman de comentarios "
+        "ID → criterio de aceptación → escenario → resultado. El ID es el tag del escenario "
+        "(ej. @G05-LOGIN-001) y da nombre a la evidencia; los criterios se toman de comentarios "
         '"# criterio: &lt;texto&gt;" sobre cada Scenario en el .feature.', st["small"]))
     story.append(Spacer(1, 3 * mm))
-    trace_rows = [["Criterio", "Escenario", "Resultado"]]
-    for criterio, feat_name, scen_name, status in trace:
+    trace_rows = [["ID", "Criterio", "Escenario", "Resultado"]]
+    for escenario_id, criterio, feat_name, scen_name, status in trace:
         trace_rows.append([
+            Paragraph(escenario_id, st["body"]),
             Paragraph(criterio, st["body"]),
             Paragraph(scen_name, st["body"]),
             Paragraph(STATUS_ICON.get(status, status), ParagraphStyle(
                 "s", fontName="Helvetica-Bold", fontSize=9, textColor=STATUS_COLOR.get(status, GRAY_MID))),
         ])
-    trace_table = Table(trace_rows, colWidths=[70 * mm, 70 * mm, 24 * mm], repeatRows=1)
+    trace_table = Table(trace_rows, colWidths=[30 * mm, 58 * mm, 58 * mm, 18 * mm], repeatRows=1)
     trace_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), GRAY_LIGHT),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -256,6 +379,45 @@ def build_pdf(output, features, totals, trace, args):
             story.append(KeepTogether(block))
             story.append(Spacer(1, 3 * mm))
 
+    # ── Anexo: evidencia por escenario ──
+    evidencias = evidencias_por_id(getattr(args, "evidence_dir", None))
+    adjuntas = [(eid, nombre, status) for eid, _c, _f, nombre, status in trace if eid in evidencias]
+    if adjuntas:
+        ancho_util = PAGE_W - 2 * MARGIN
+        story.append(PageBreak())
+        story.append(Paragraph("Anexo — Evidencia por escenario", st["h1"]))
+        story.append(Paragraph(
+            "Cada escenario automatizado guarda su evidencia con el mismo ID que lleva como tag: "
+            "captura de pantalla para los escenarios de interfaz, última respuesta HTTP para los "
+            "de API. Se incluye el archivo más reciente de cada ID.", st["small"]))
+
+        for escenario_id, scen_name, status in adjuntas:
+            archivo = evidencias[escenario_id][0]
+            color = STATUS_COLOR.get(status, GRAY_MID)
+            bloque = [
+                Paragraph(f"{escenario_id} — {scen_name}", ParagraphStyle(
+                    "ev", fontName="Helvetica-Bold", fontSize=11, textColor=color,
+                    spaceBefore=10, spaceAfter=2)),
+                Paragraph(archivo["nombre"], st["small"]),
+                Spacer(1, 2 * mm),
+            ]
+
+            if archivo["ext"] in ("png", "jpg", "jpeg"):
+                try:
+                    bloque.append(imagen_ajustada(archivo["path"], ancho_util))
+                except Exception as exc:  # imagen corrupta o formato no soportado
+                    bloque.append(Paragraph(f"No se pudo incrustar la imagen: {exc}", st["small"]))
+            else:
+                texto = resumen_json(archivo["path"])
+                if texto:
+                    # Preformatted conserva la indentación del JSON, que Paragraph colapsa.
+                    bloque.append(Preformatted(texto, st["mono"]))
+                else:
+                    bloque.append(Paragraph("Evidencia no legible.", st["small"]))
+
+            story.append(KeepTogether(bloque))
+            story.append(Spacer(1, 4 * mm))
+
     doc.build(story)
 
 
@@ -266,6 +428,9 @@ def main():
     p.add_argument("--grupo", default=None, help='Ej: "Grupo 3 — Pagos de Servicios"')
     p.add_argument("--author", default=None)
     p.add_argument("--repo-url", default=None)
+    p.add_argument("--evidence-dir", default=None,
+                   help="Carpeta con las evidencias <ID>-<PASSED|FAILED>-<sello>.<png|json>. "
+                        "Por defecto, la carpeta del PDF de salida.")
     args = p.parse_args()
 
     if not os.path.exists(args.results):
@@ -275,6 +440,10 @@ def main():
     if not output:
         base = re.sub(r"[^A-Za-z0-9_]+", "_", (args.grupo or "BDD")).upper()
         output = f"INFORME_BDD_{base}.pdf"
+
+    # Por defecto, la evidencia se busca junto al PDF generado.
+    if not args.evidence_dir:
+        args.evidence_dir = os.path.dirname(os.path.abspath(output))
 
     features, totals, trace = parse_results(args.results)
     build_pdf(output, features, totals, trace, args)

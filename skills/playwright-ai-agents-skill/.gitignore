@@ -1,0 +1,24 @@
+# Resultados Playwright
+results/
+playwright-report/
+playwright/.auth/
+test-results/
+
+# Presupuesto y uso de IA
+.env.ai
+ai-usage.jsonl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Node
+node_modules/
+
+# Índice local de CodeGraph
+.codegraph/

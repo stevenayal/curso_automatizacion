@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Grupo 05-01 - Crear y consultar depositos" enabled="true">
+      <stringProp name="TestPlan.comments">API v2, Grupo 5. CSV -> POST /depositos -> JSON Extractor $.data.id -> GET /depositos con filtros usuarioId y estado -> GET /depositos/{id} -> POST /depositos/{id}/cancelar para liberar el saldo. Mantener el CSV junto al JMX o indicar csvFile absoluto. API_KEY se recibe del entorno o de la propiedad apiKey; no guardar credenciales en este plan ni en el CSV. Baseline: 1 usuario, 3 iteraciones, 12 solicitudes y 20 requests/minuto compartidos. maxResponseMs es un umbral configurable de la practica, no un SLA contractual. Los perfiles se parametrizan con threads, rampup, loops, duration y throughput.</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="Variables del plan">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="host" elementType="Argument">
+            <stringProp name="Argument.name">host</stringProp>
+            <stringProp name="Argument.value">${__P(host,aiquaa-sandbox-api.vercel.app)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="protocol" elementType="Argument">
+            <stringProp name="Argument.name">protocol</stringProp>
+            <stringProp name="Argument.value">${__P(protocol,https)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="port" elementType="Argument">
+            <stringProp name="Argument.name">port</stringProp>
+            <stringProp name="Argument.value">${__P(port,443)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="apiKey" elementType="Argument">
+            <stringProp name="Argument.name">apiKey</stringProp>
+            <stringProp name="Argument.value">${__groovy(System.getenv('API_KEY') ?: props.get('apiKey') ?: '')}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="perfil" elementType="Argument">
+            <stringProp name="Argument.name">perfil</stringProp>
+            <stringProp name="Argument.value">${__P(perfil,baseline)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+          <collectionProp name="Arguments.arguments"/>
+        </elementProp>
+        <stringProp name="HTTPSampler.domain">${host}</stringProp>
+        <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+        <stringProp name="HTTPSampler.port">${port}</stringProp>
+        <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+        <stringProp name="HTTPSampler.connect_timeout">${__P(connectTimeoutMs,10000)}</stringProp>
+        <stringProp name="HTTPSampler.response_timeout">${__P(responseTimeoutMs,15000)}</stringProp>
+        <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+      </ConfigTestElement>
+      <hashTree/>
+      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers de la API v2" enabled="true">
+        <collectionProp name="HeaderManager.headers">
+          <elementProp name="x-api-key" elementType="Header">
+            <stringProp name="Header.name">x-api-key</stringProp>
+            <stringProp name="Header.value">${apiKey}</stringProp>
+          </elementProp>
+          <elementProp name="Content-Type" elementType="Header">
+            <stringProp name="Header.name">Content-Type</stringProp>
+            <stringProp name="Header.value">application/json</stringProp>
+          </elementProp>
+          <elementProp name="Accept" elementType="Header">
+            <stringProp name="Header.name">Accept</stringProp>
+            <stringProp name="Header.value">application/json</stringProp>
+          </elementProp>
+        </collectionProp>
+      </HeaderManager>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="CSV - Creacion, consulta y limpieza" enabled="true">
+        <stringProp name="ThreadGroup.num_threads">${__P(threads,1)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(rampup,1)}</stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">${__P(duration,120)}</stringProp>
+        <stringProp name="ThreadGroup.delay">0</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Iteraciones">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${__P(loops,3)}</stringProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="CSV Data Set - Datos variables de depositos" enabled="true">
+          <stringProp name="filename">${__P(csvFile,D_GRUPO_05_01_DEPOSITOS.csv)}</stringProp>
+          <stringProp name="fileEncoding">UTF-8</stringProp>
+          <stringProp name="variableNames">caso,usuarioId,cuentaId,monto,plazoDias,tasaAnual,estado</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <stringProp name="delimiter">,</stringProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="Pacing compartido - 20 requests/minuto" enabled="true">
+          <intProp name="calcMode">4</intProp>
+          <stringProp name="throughput">${__P(throughput,20)}</stringProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
+        <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="Tiempo de respuesta - Umbral configurable" enabled="true">
+          <stringProp name="DurationAssertion.duration">${__P(maxResponseMs,3000)}</stringProp>
+        </DurationAssertion>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST - Crear deposito desde CSV" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"usuarioId": ${usuarioId}, "cuentaId": ${cuentaId}, "monto": ${monto}, "plazoDias": ${plazoDias}, "tasaAnual": ${tasaAnual}}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/v2/depositos</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <boolProp name="HTTPSampler.follow_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Limpiar correlacion anterior y validar CSV" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="parameters"/>
+            <stringProp name="filename"/>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script"><![CDATA[
+vars.put('depositoId', 'ID_NO_EXTRAIDO')
+if (!vars.get('apiKey')?.trim()) {
+    ctx.getThread().stop()
+    throw new IllegalStateException('Falta API_KEY en el entorno o la propiedad apiKey')
+}
+try {
+    assert vars.get('usuarioId').toLong() > 0
+    assert vars.get('cuentaId').toLong() > 0
+    assert new BigDecimal(vars.get('monto')) > 0
+    assert new BigDecimal(vars.get('tasaAnual')) >= 0
+    assert vars.get('plazoDias').toInteger() in 30..1095
+    assert vars.get('estado') in ['activo', 'vencido', 'cancelado']
+} catch (Throwable e) {
+    ctx.getThread().stop()
+    throw new IllegalArgumentException('Revisar los valores del CSV: ' + vars.get('caso'))
+}
+]]></stringProp>
+          </JSR223PreProcessor>
+          <hashTree/>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="JSON Extractor - ID del deposito creado" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">depositoId</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.id</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">ID_NO_EXTRAIDO</stringProp>
+            <boolProp name="JSONPostProcessor.compute_concat">false</boolProp>
+          </JSONPostProcessor>
+          <hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="POST responde HTTP 201" enabled="true">
+            <collectionProp name="Asserion.test_strings"><stringProp name="201">201</stringProp></collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Validar ID extraido y datos creados" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="parameters"/>
+            <stringProp name="filename"/>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script"><![CDATA[
+try {
+    def data = new groovy.json.JsonSlurper().parseText(prev.getResponseDataAsString()).data
+    assert data.id instanceof Number && data.id.longValue() > 0
+    assert vars.get('depositoId') == data.id.toString()
+    assert data.usuario_id == vars.get('usuarioId').toLong()
+    assert data.cuenta_id == vars.get('cuentaId').toLong()
+    assert new BigDecimal(data.monto.toString()).compareTo(new BigDecimal(vars.get('monto'))) == 0
+    assert data.plazo_dias == vars.get('plazoDias').toInteger()
+    assert new BigDecimal(data.tasa_anual.toString()).compareTo(new BigDecimal(vars.get('tasaAnual'))) == 0
+    assert data.estado == 'activo'
+} catch (Throwable e) {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Creacion o correlacion invalida: ' + e.message)
+}
+]]></stringProp>
+          </JSR223Assertion>
+          <hashTree/>
+        </hashTree>
+        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Continuar solo con el ID creado en esta iteracion" enabled="true">
+          <stringProp name="IfController.condition">${__groovy(vars.get('depositoId') != null &amp;&amp; vars.get('depositoId') ==~ /[0-9]+/)}</stringProp>
+          <boolProp name="IfController.evaluateAll">false</boolProp>
+          <boolProp name="IfController.useExpression">true</boolProp>
+        </IfController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET - Listar depositos por usuario y estado" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="usuarioId" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">true</boolProp>
+                  <stringProp name="Argument.name">usuarioId</stringProp>
+                  <stringProp name="Argument.value">${usuarioId}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+                <elementProp name="estado" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">true</boolProp>
+                  <stringProp name="Argument.name">estado</stringProp>
+                  <stringProp name="Argument.value">${estado}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">/api/v2/depositos</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Listado responde HTTP 200" enabled="true">
+              <collectionProp name="Asserion.test_strings"><stringProp name="200">200</stringProp></collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+            <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Validar filtros del listado y presencia del deposito creado" enabled="true">
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="parameters"/>
+              <stringProp name="filename"/>
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script"><![CDATA[
+try {
+    def data = new groovy.json.JsonSlurper().parseText(prev.getResponseDataAsString()).data
+    assert data instanceof List
+    assert data.every { it.usuario_id == vars.get('usuarioId').toLong() }
+    assert data.every { it.estado == vars.get('estado') }
+    def aparece = data.any { it.id.toString() == vars.get('depositoId') }
+    if (vars.get('estado') == 'activo') {
+        assert aparece : 'El listado activo debe incluir el deposito recien creado'
+    } else {
+        assert !aparece : 'Un deposito activo no debe aparecer al filtrar otro estado'
+    }
+} catch (Throwable e) {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Listado filtrado invalido: ' + e.message)
+}
+]]></stringProp>
+            </JSR223Assertion>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET - Consultar deposito con ID correlacionado" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
+            <stringProp name="HTTPSampler.path">/api/v2/depositos/${depositoId}</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="GET responde HTTP 200" enabled="true">
+              <collectionProp name="Asserion.test_strings"><stringProp name="200">200</stringProp></collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+            <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Consulta coincide con el deposito y la fila CSV" enabled="true">
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="parameters"/>
+              <stringProp name="filename"/>
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script"><![CDATA[
+try {
+    def data = new groovy.json.JsonSlurper().parseText(prev.getResponseDataAsString()).data
+    assert data.id.toString() == vars.get('depositoId')
+    assert data.usuario_id == vars.get('usuarioId').toLong()
+    assert data.cuenta_id == vars.get('cuentaId').toLong()
+    assert new BigDecimal(data.monto.toString()).compareTo(new BigDecimal(vars.get('monto'))) == 0
+    assert data.plazo_dias == vars.get('plazoDias').toInteger()
+    assert new BigDecimal(data.tasa_anual.toString()).compareTo(new BigDecimal(vars.get('tasaAnual'))) == 0
+    assert data.estado == 'activo'
+    assert java.time.LocalDate.parse(data.fecha_vencimiento) == java.time.LocalDate.parse(data.fecha_inicio).plusDays(data.plazo_dias)
+} catch (Throwable e) {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Consulta dinamica invalida: ' + e.message)
+}
+]]></stringProp>
+            </JSR223Assertion>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST - Cancelar deposito creado (limpieza)" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
+            <stringProp name="HTTPSampler.path">/api/v2/depositos/${depositoId}/cancelar</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Limpieza responde HTTP 200" enabled="true">
+              <collectionProp name="Asserion.test_strings"><stringProp name="200">200</stringProp></collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+            <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Verificar cancelacion del ID correlacionado" enabled="true">
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="parameters"/>
+              <stringProp name="filename"/>
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script"><![CDATA[
+try {
+    def data = new groovy.json.JsonSlurper().parseText(prev.getResponseDataAsString()).data
+    assert data.id.toString() == vars.get('depositoId')
+    assert data.estado == 'cancelado'
+    assert new BigDecimal(data.monto.toString()).compareTo(new BigDecimal(vars.get('monto'))) == 0
+    assert new BigDecimal(data.interes_generado.toString()) >= 0
+} catch (Throwable e) {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Limpieza del deposito invalida: ' + e.message)
+}
+]]></stringProp>
+            </JSR223Assertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <ResultCollector guiclass="SimpleDataWriter" testclass="ResultCollector" testname="Resultados JTL - Indicar archivo con -l" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <stringProp name="filename"/>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time><latency>true</latency><timestamp>true</timestamp>
+              <success>true</success><label>true</label><code>true</code>
+              <message>true</message><threadName>true</threadName><dataType>true</dataType>
+              <encoding>false</encoding><assertions>true</assertions><subresults>false</subresults>
+              <responseData>false</responseData><samplerData>false</samplerData><xml>false</xml>
+              <fieldNames>true</fieldNames><responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders><responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <bytes>true</bytes><sentBytes>true</sentBytes><url>true</url>
+              <threadCounts>true</threadCounts><idleTime>true</idleTime><connectTime>true</connectTime>
+            </value>
+          </objProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

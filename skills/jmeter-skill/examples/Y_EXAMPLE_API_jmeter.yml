@@ -1,0 +1,82 @@
+# Y_EXAMPLE_API_jmeter.yml
+# JMeter performance tests — property-driven, perfil por variable de pipeline
+# Generado por skill jmeter · aiquaa.com
+#
+# Corre el perfil "carga" en cada push (rápido, no consume el rate limit del
+# sandbox de golpe). Perfiles estres/pico/resistencia/escalabilidad se corren
+# manualmente o en un pipeline aparte con aprobación — ver references/perfiles.md.
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  jmeterVersion: '5.6.3'
+  planFile: 'examples/P_SANDBOX_API.jmx'
+  csvFile: 'examples/D_SANDBOX_API.csv'
+  resultsDir: '$(Build.ArtifactStagingDirectory)/jmeter-results'
+  dashboardDir: '$(Build.ArtifactStagingDirectory)/jmeter-dashboard'
+  perfil: carga
+  threads: 10
+  rampup: 30
+  loops: -1
+  duration: 120
+
+steps:
+
+  - script: |
+      echo "== Instalando Java =="
+      sudo apt-get install -y default-jdk
+      java -version
+
+      echo "== Descargando JMeter $(jmeterVersion) =="
+      wget -q https://downloads.apache.org/jmeter/binaries/apache-jmeter-$(jmeterVersion).tgz
+      tar xzf apache-jmeter-$(jmeterVersion).tgz
+      echo "##vso[task.prependpath]$(pwd)/apache-jmeter-$(jmeterVersion)/bin"
+    displayName: Instalar JMeter
+
+  - script: mkdir -p $(resultsDir) $(dashboardDir)
+    displayName: Crear directorios de resultados
+
+  - script: |
+      jmeter -n \
+        -t $(planFile) \
+        -l $(resultsDir)/R_SANDBOX_API.jtl \
+        -e -o $(dashboardDir) \
+        -Jperfil=$(perfil) \
+        -Jthreads=$(threads) \
+        -Jrampup=$(rampup) \
+        -Jloops=$(loops) \
+        -Jduration=$(duration) \
+        -JcsvData=$(csvFile) \
+        -JresultsFile=$(resultsDir)/R_SANDBOX_API.jtl \
+        -JbaseUrl=$(baseUrl) \
+        -JapiKey=$(apiKey)
+    displayName: Ejecutar prueba de rendimiento JMeter — perfil $(perfil)
+    continueOnError: true
+
+  - script: |
+      pip install reportlab pandas --quiet
+      python reporter/jmeter_report.py \
+        --results $(resultsDir)/R_SANDBOX_API.jtl \
+        --output $(resultsDir)/INFORME_PERF_SANDBOX_API.pdf \
+        --api-name "Sandbox API" \
+        --perfil $(perfil) \
+        --threads $(threads) \
+        --loops $(loops) \
+        --sla-error-rate 2 \
+        --sla-p95 800
+    displayName: Generar informe PDF
+    condition: always()
+
+  - task: PublishBuildArtifacts@1
+    condition: always()
+    inputs:
+      pathToPublish: $(Build.ArtifactStagingDirectory)
+      artifactName: jmeter-results
+    displayName: Subir artefactos
