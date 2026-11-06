@@ -49,7 +49,7 @@ jobs:
 
       - name: Ejecutar coleccion de tarjetas
         run: >
-          npx newman run "postman/CIT Automatizacion -Aiquaa Sandbox API v2 - Grupo2.postman_collection.json"
+          npx newman run "postman/CIT Automatizacion -Aiquaa Sandbox API v2 - Grupo2.postman_collection V2.json"
           --env-var "api_key=${{ secrets.API_KEY }}"
           --env-var "apiKey=${{ secrets.API_KEY }}"
           --env-var "baseUrl=https://aiquaa-sandbox-api.vercel.app"
