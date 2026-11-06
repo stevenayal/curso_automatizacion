@@ -1,0 +1,6 @@
+clienteId,tipoTarjeta,limiteCredito
+101,clasica,5000000
+102,oro,12000000
+103,black,25000000
+104,clasica,4500000
+105,oro,10000000
