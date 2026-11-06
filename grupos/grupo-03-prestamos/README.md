@@ -65,6 +65,27 @@ Modelo de datos confirmado contra la API real:
 
 Colección Postman: [`postman/Grupo 03 - Prestamos.postman_collection.json`](./postman/Grupo%2003%20-%20Prestamos.postman_collection.json)
 
+### Escenarios BDD `@api` (Tarea 3.0)
+
+[`features/prestamos-api.feature`](./features/prestamos-api.feature) automatiza el mismo flujo
+dinámico de la carpeta 05 de la colección, con un fixture aislado
+([`fixtures/PrestamosFixture.ts`](./fixtures/PrestamosFixture.ts)) que crea su propio usuario y
+préstamo por escenario. No usan Page Objects porque no hay UI involucrada: validan la respuesta
+REST y, con `POST /api/v2/sql/select`, el estado real en `prestamos` y `cuotas_prestamo`.
+
+| Escenario | Tags | Verificación |
+|---|---|---|
+| Solicitar un préstamo crea el registro en estado solicitado | `@happy-path @smoke` | `201`, estado `solicitado`, fila con los datos enviados |
+| La API rechaza un préstamo con monto negativo | `@negativo` | `400`, `error.code`/`error.message`, `COUNT(*)` sin cambios |
+| Aprobar un préstamo genera sus cuotas pendientes | `@happy-path` | `200`, estado `aprobado`, 6 cuotas `pendiente` sin `fecha_pago` |
+| Pagar una cuota descuenta su monto del saldo pendiente | `@happy-path` | `200`, cuota `pagada` con `fecha_pago`, saldo baja el monto exacto |
+| Pagar una cuota inexistente no modifica el saldo | `@negativo` | `404`, saldo y cuotas pagadas sin cambios |
+| Pagar dos veces la misma cuota no genera un doble cobro | `@negativo` | `400`/`409`, saldo y cuotas pagadas sin cambios |
+
+Los escenarios requieren `API_KEY` (sandbox Curso 2) y se ejecutan solo con el perfil `g03-api`.
+La limpieza de los datos creados es *best-effort* en el hook `After`; si el sandbox rechaza la baja
+de un préstamo vigente, se registra una advertencia y el escenario no falla.
+
 ## Patrón SQL REST dinámico (Tarea 3.0)
 
 La carpeta `05 - Pago de cuota con validacion SQL (pre/post)` aplica el patrón de
@@ -97,6 +118,23 @@ La ejecución genera `newman/grupo-03/newman-results.json`. En GitHub Actions, e
 `INFORME_DE_AUT_GRUPO_03_PRESTAMOS.pdf` y publica ambos archivos como artefacto. El workflow usa
 el secreto `API_KEY` del Environment `api_key`.
 
+Los escenarios BDD `@api` se ejecutan con el perfil dedicado (no abren navegador):
+
+```powershell
+$env:API_KEY = "<clave del sandbox>"
+npm run test:bdd:g03-api
+```
+
+El perfil deja `results/cucumber-g03-api.json` y `results/cucumber-g03-api.html`. El workflow
+[`grupo-03-prestamos.yml`](../../.github/workflows/grupo-03-prestamos.yml) corre Newman, genera el
+PDF, ejecuta estos escenarios BDD y publica dos artefactos:
+
+- `grupo-03-prestamos-newman-reportes`: JSON de Newman + `INFORME_DE_AUT_GRUPO_03_PRESTAMOS.pdf`.
+- `grupo-03-prestamos-bdd-api`: reporte JSON/HTML de Cucumber del perfil `g03-api`.
+
+El job usa `concurrency` por rama para que una corrida nueva cancele la anterior y no se reparta el
+límite de requests de la `API_KEY` compartida.
+
 ## Incidencias encontradas
 
 Las incidencias del módulo están **publicadas como issues en GitHub**
@@ -120,6 +158,7 @@ Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [X] Análisis y alcance (sección de arriba completa)
 - [X] BDD — `features/prestamos.feature` (happy path, negativo y edge case)
+- [X] BDD API — `features/prestamos-api.feature` (6 escenarios `@api` con fixture aislado y validación SQL)
 - [X] API — colección Postman/Newman en `postman/` con assertions, JSON de resultados e informe PDF
 - [ ] UI — `tests/e2e/prestamos.spec.ts` con Playwright
 - [X] Evidencias — JSON de Newman e informe PDF publicados como artefactos del workflow

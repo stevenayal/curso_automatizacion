@@ -1,4 +1,4 @@
-import { After, AfterAll, Before, BeforeAll, setDefaultTimeout, Status } from '@cucumber/cucumber';
+import { After, AfterAll, Before, setDefaultTimeout, Status } from '@cucumber/cucumber';
 import { chromium, type Browser } from '@playwright/test';
 import { LoansPage } from '../../../playwright/pages/LoansPage';
 import { CuentasPage } from '../../../grupos/grupo-01-cuentas-bancarias/playwright/pages/CuentasPage';
@@ -8,16 +8,20 @@ import { LoansWorld } from './loans.world';
 // default de 5s de Cucumber para hooks y steps.
 setDefaultTimeout(60_000);
 
-let browser: Browser;
+let browser: Browser | undefined;
 
-BeforeAll(async () => {
+// Se lanza al primer escenario que realmente usa el navegador. Así los
+// perfiles de solo API (por ejemplo `npm run test:bdd:g03-api`) no requieren
+// tener Chromium instalado.
+async function getBrowser(): Promise<Browser> {
   // HEADED=1 abre la ventana en local; en CI (HEADED=0 o sin definir) corre sin ventana.
-  browser = await chromium.launch({ headless: process.env.HEADED !== '1' });
-});
+  browser ??= await chromium.launch({ headless: process.env.HEADED !== '1' });
+  return browser;
+}
 
 Before({ tags: '@grupo-03 and @web and not @wip' }, async function (this: LoansWorld) {
-  this.browser = browser;
-  this.context = await browser.newContext({
+  this.browser = await getBrowser();
+  this.context = await this.browser.newContext({
     baseURL: process.env.BASE_URL || 'https://aiquaa-sandbox-web.vercel.app',
   });
   this.page = await this.context.newPage();
@@ -32,8 +36,8 @@ After({ tags: '@grupo-03 and @web and not @wip' }, async function (this: LoansWo
 });
 
 Before({ tags: '@grupo-01' }, async function (this: LoansWorld) {
-  this.browser = browser;
-  this.context = await browser.newContext({
+  this.browser = await getBrowser();
+  this.context = await this.browser.newContext({
     baseURL: process.env.BASE_URL || 'https://aiquaa-sandbox-web.vercel.app',
   });
   this.page = await this.context.newPage();

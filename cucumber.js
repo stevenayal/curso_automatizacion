@@ -24,4 +24,18 @@ module.exports = {
     format: ['progress'],
     formatOptions: { snippetInterface: 'async-await' },
   },
+  // Perfil usado por el workflow de Grupo 03 para ejecutar solo los
+  // escenarios de API de préstamos (requiere API_KEY) y publicar su reporte.
+  'g03-api': {
+    paths,
+    require: require_,
+    requireModule: ['ts-node/register'],
+    tags: '@grupo-03 and @api and not @wip',
+    format: [
+      'progress',
+      'json:results/cucumber-g03-api.json',
+      'html:results/cucumber-g03-api.html',
+    ],
+    formatOptions: { snippetInterface: 'async-await' },
+  },
 };
