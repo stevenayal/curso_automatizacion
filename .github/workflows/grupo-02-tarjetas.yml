@@ -51,7 +51,8 @@ jobs:
         run: >
           npx newman run "postman/CIT Automatizacion -Aiquaa Sandbox API v2 - Grupo2.postman_collection.json"
           --env-var "api_key=${{ secrets.API_KEY }}"
-          --env-var "baseUrl=${{ vars.GRUPO02_BASE_URL }}"
+          --env-var "apiKey=${{ secrets.API_KEY }}"
+          --env-var "baseUrl=https://aiquaa-sandbox-api.vercel.app"
           --reporters cli,json
           --reporter-json-export newman/grupo-02/newman-results.json
 
