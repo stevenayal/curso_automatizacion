@@ -48,7 +48,12 @@ jobs:
           python -m pip install -r skills/postman-newman-skill/reporter/requirements.txt
 
       - name: Ejecutar coleccion de tarjetas
-        run: npm run test:api:grupo-02 -- --env-var "api_key=${{ secrets.API_KEY }}"
+        run: >
+          npx newman run "postman/CIT Automatizacion -Aiquaa Sandbox API v2 - Grupo2.postman_collection.json"
+          --env-var "api_key=${{ secrets.API_KEY }}"
+          --env-var "baseUrl=${{ vars.GRUPO02_BASE_URL }}"
+          --reporters cli,json
+          --reporter-json-export newman/grupo-02/newman-results.json
 
       - name: Generar informe PDF
         if: always()
