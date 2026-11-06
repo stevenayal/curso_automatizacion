@@ -12,6 +12,12 @@ export class LoansWorld extends World {
   cuentas!: CuentasPage;
   depositos!: DepositosPage;
 
+  /** Usuario de prueba documentado para la sandbox (se puede sobreescribir por env). */
+  readonly adminEmail = process.env.TEST_ADMIN_EMAIL || 'admin@aiquaa.com';
+
+  /** Préstamo abierto por el escenario actual (útil para futuros pasos de detalle). */
+  currentLoanId?: number;
+
   constructor(options: IWorldOptions) {
     super(options);
   }
