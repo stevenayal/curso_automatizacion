@@ -1,0 +1,116 @@
+name: Grupo 02 - Tarjetas JMeter, Grafana e informe PDF
+
+on:
+  pull_request:
+    paths:
+      - 'tests/performance/plans/P_GRUPO2_TARJETAS.jmx'
+      - 'tests/performance/plans/D_GRUPO2_TARJETAS.csv'
+      - '.github/workflows/grupo-02-tarjetas-jmeter.yml'
+  workflow_dispatch:
+    inputs:
+      REQUESTS:
+        description: 'Límite de requests (cap)'
+        required: false
+        default: '100'
+      DURATION:
+        description: 'Duración objetivo del target (ej: 30s o 1m)'
+        required: false
+        default: '30s'
+
+permissions:
+  contents: read
+
+env:
+  API_BASE_URL: https://aiquaa-sandbox-api.vercel.app
+  PLAN_PATH: tests/performance/plans/P_GRUPO2_TARJETAS.jmx
+  SLA_ERROR_RATE: '1'
+  SLA_P95_MS: '800'
+  TEST_NAME: Tarjetas Grupo 02 Performance
+
+jobs:
+  performance:
+    name: Carga tarjetas + Informe PDF
+    runs-on: ubuntu-latest
+    environment: api_key
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar JMeter 5.6.3
+        run: |
+          curl -sL https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz | tar -xz
+          echo "$PWD/apache-jmeter-5.6.3/bin" >> $GITHUB_PATH
+
+      - name: Ejecutar plan de JMeter
+        run: |
+          mkdir -p test-results/performance/evidence
+          jmeter -n -t "$PLAN_PATH" \
+            -l test-results/performance/results.jtl \
+            -Jbase_url=aiquaa-sandbox-api.vercel.app \
+            -Jprotocol=https \
+            -JapiKey="${{ secrets.API_KEY }}" \
+            -Jthreads=5 \
+            -Jduration=30
+
+      - name: Generar resumen de metricas y evaluacion SLA
+        if: always()
+        run: |
+          python -c '
+          import csv, json, os, sys
+
+          jtl_path = "test-results/performance/results.jtl"
+          if not os.path.exists(jtl_path):
+              print("No se encontró el archivo JTL de resultados.")
+              sys.exit(0)
+
+          latencies = []
+          errors = 0
+          with open(jtl_path, "r", encoding="utf-8") as f:
+              reader = csv.DictReader(f)
+              for row in reader:
+                  latencies.append(int(row["elapsed"]))
+                  if row["success"] != "true":
+                      errors += 1
+
+          total = len(latencies)
+          if total == 0:
+              print("No hay muestras registradas.")
+              sys.exit(0)
+
+          latencies.sort()
+          p95_index = int(0.95 * total) - 1
+          p95 = latencies[max(0, p95_index)]
+          avg = sum(latencies) / total
+          error_rate = (errors / total) * 100
+
+          summary = f"""### JMeter Grupo 02 - Tarjetas
+          | Metrica | Valor |
+          |---|---|
+          | Requests | {total} |
+          | Promedio (ms) | {avg:.1f} |
+          | P95 (ms) - umbral 800 | {p95} |
+          | Error rate (%) - umbral 1 | {error_rate:.1f} |
+          | Veredicto | {"DENTRO DE SLA" if error_rate <= 1 and p95 <= 800 else "FUERA DE SLA"} |
+          """
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write(summary)
+          '
+
+      - name: Publicar resultados JTL
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GRUPO_02_JTL_RESULTADOS
+          path: test-results/performance/results.jtl
+          if-no-files-found: warn
