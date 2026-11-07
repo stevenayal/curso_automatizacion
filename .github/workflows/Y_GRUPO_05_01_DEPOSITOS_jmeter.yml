@@ -9,13 +9,6 @@ on:
       - 'tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx'
       - 'tests/performance/plans/D_GRUPO_05_01_DEPOSITOS.csv'
       - 'tests/performance/properties/grupo-05-01.properties'
-  pull_request:
-    paths:
-      - 'grupos/grupo-05-01-ahorros-depositos/README.md'
-      - '.github/workflows/Y_GRUPO_05_01_DEPOSITOS_jmeter.yml'
-      - 'tests/performance/plans/P_GRUPO_05_01_DEPOSITOS.jmx'
-      - 'tests/performance/plans/D_GRUPO_05_01_DEPOSITOS.csv'
-      - 'tests/performance/properties/grupo-05-01.properties'
   workflow_dispatch:
     inputs:
       threads:
@@ -52,7 +45,6 @@ jobs:
     name: Depositos - Carga, Grafana y PDF
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     environment: api_key
     steps:
       - name: Obtener repositorio
