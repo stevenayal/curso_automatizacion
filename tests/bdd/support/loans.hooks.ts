@@ -1,12 +1,8 @@
-import { After, AfterAll, Before, setDefaultTimeout, Status } from '@cucumber/cucumber';
+import { After, AfterAll, Before, Status } from '@cucumber/cucumber';
 import { chromium, type Browser } from '@playwright/test';
 import { LoansPage } from '../../../playwright/pages/LoansPage';
 import { CuentasPage } from '../../../grupos/grupo-01-cuentas-bancarias/playwright/pages/CuentasPage';
 import { LoansWorld } from './loans.world';
-
-// El arranque de Chromium y los flujos de navegación reales superan el
-// default de 5s de Cucumber para hooks y steps.
-setDefaultTimeout(60_000);
 
 let browser: Browser | undefined;
 
