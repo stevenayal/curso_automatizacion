@@ -56,14 +56,58 @@ Modelo de datos confirmado contra la API real:
 | El cliente consulta el saldo de un préstamo vigente | `GET /api/v2/prestamos/{id}` | `prestamo_id=2` (estado `aprobado`) | Devuelve `saldo_pendiente` > 0 y datos del préstamo |
 | Consulta de un préstamo de otro cliente | `GET /api/v2/prestamos/{id}` | por definir (pendiente de implementar por otro integrante) | por definir |
 | Préstamo con todas las cuotas pagadas | `GET /api/v2/prestamos/{id}` | `prestamo_id=6` (estado `pagado`, `saldo_pendiente` = "0.00") | `saldo_pendiente` = 0 y `estado` = `pagado` |
+| Solicitud de préstamo (happy path) | `POST /api/v2/prestamos` | usuario creado en el run, `montoSolicitado=1200000`, `tasaInteres=12`, `plazoMeses=6` | `201`, estado `solicitado`; la BD confirma la fila insertada |
+| Solicitud con monto inválido (negativo) | `POST /api/v2/prestamos` | `montoSolicitado=-500` (única variable sobreescrita) | `400`; `COUNT(*)` de préstamos del usuario sin cambios |
+| Aprobación genera el cronograma | `POST /api/v2/prestamos/{id}/aprobar` | préstamo del run en `solicitado` | `200`; BD: estado `aprobado`, 6 cuotas `pendiente`, cuota = monto × (1 + tasa/100) / plazo |
+| Pago de una cuota pendiente | `POST /api/v2/prestamos/{id}/cuotas/1/pagar` | cuota 1 en `pendiente` | `200`; BD: cuota `pagada` con `fecha_pago`, `saldo_pendiente` baja el monto de la cuota |
+| Pago de cuota inexistente (negativo) | `POST /api/v2/prestamos/{id}/cuotas/99/pagar` | `numero_cuota=99` (única variable sobreescrita) | `404`; saldo y cuotas pagadas sin cambios |
+| Doble pago de la misma cuota (edge case) | `POST /api/v2/prestamos/{id}/cuotas/1/pagar` | cuota 1 ya `pagada` | `400`/`409`; saldo y cuotas pagadas sin cambios (no hay doble cobro) |
 
 Colección Postman: [`postman/Grupo 03 - Prestamos.postman_collection.json`](./postman/Grupo%2003%20-%20Prestamos.postman_collection.json)
 
+### Escenarios BDD `@api` (Tarea 3.0)
+
+[`features/prestamos-api.feature`](./features/prestamos-api.feature) automatiza el mismo flujo
+dinámico de la carpeta 05 de la colección, con un fixture aislado
+([`fixtures/PrestamosFixture.ts`](./fixtures/PrestamosFixture.ts)) que crea su propio usuario y
+préstamo por escenario. No usan Page Objects porque no hay UI involucrada: validan la respuesta
+REST y, con `POST /api/v2/sql/select`, el estado real en `prestamos` y `cuotas_prestamo`.
+
+| Escenario | Tags | Verificación |
+|---|---|---|
+| Solicitar un préstamo crea el registro en estado solicitado | `@happy-path @smoke` | `201`, estado `solicitado`, fila con los datos enviados |
+| La API rechaza un préstamo con monto negativo | `@negativo` | `400`, `error.code`/`error.message`, `COUNT(*)` sin cambios |
+| Aprobar un préstamo genera sus cuotas pendientes | `@happy-path` | `200`, estado `aprobado`, 6 cuotas `pendiente` sin `fecha_pago` |
+| Pagar una cuota descuenta su monto del saldo pendiente | `@happy-path` | `200`, cuota `pagada` con `fecha_pago`, saldo baja el monto exacto |
+| Pagar una cuota inexistente no modifica el saldo | `@negativo` | `404`, saldo y cuotas pagadas sin cambios |
+| Pagar dos veces la misma cuota no genera un doble cobro | `@negativo` | `400`/`409`, saldo y cuotas pagadas sin cambios |
+
+Los escenarios requieren `API_KEY` (sandbox Curso 2) y se ejecutan solo con el perfil `g03-api`.
+La limpieza de los datos creados es *best-effort* en el hook `After`; si el sandbox rechaza la baja
+de un préstamo vigente, se registra una advertencia y el escenario no falla.
+
+## Patrón SQL REST dinámico (Tarea 3.0)
+
+La carpeta `05 - Pago de cuota con validacion SQL (pre/post)` aplica el patrón de
+[`docs/TAREA-SQL-REST-DINAMICO.md`](../../docs/TAREA-SQL-REST-DINAMICO.md) sobre los endpoints
+de escritura del módulo:
+
+- **Pre-request de la colección:** declara una sola vez `utils.bodySqlRest(sql, params)` (consulta
+  `POST /api/v2/sql/select`) y resetea a su valor por defecto las variables del body
+  (`monto_solicitado`, `tasa_interes`, `plazo_meses`, `numero_cuota`).
+- **Pre-request de cada request:** valida la precondición en la BD (el préstamo está en
+  `solicitado`, la cuota está `pendiente`, etc.) y guarda una foto del estado (saldo, cantidad de
+  cuotas pagadas, `COUNT(*)`). Los casos negativos sobreescriben **una sola** variable.
+- **Tests (post-response):** validan status y respuesta, y vuelven a consultar la BD para confirmar
+  el INSERT/UPDATE o, en los negativos, que nada cambió.
+- **Datos propios:** el flujo crea su propio usuario y préstamo en cada corrida, así no modifica
+  los datos compartidos del sandbox. Si falla un paso previo, los siguientes quedan `skipped`.
+
 ## Ejecución y reportes
 
-La colección es idempotente: cubre consultas de préstamo vigente, préstamo pagado, cuotas
-pendientes, cuotas vencidas y un préstamo inexistente. No ejecuta pagos sobre los datos compartidos
-del sandbox.
+Las carpetas 02 a 04 son idempotentes: cubren consultas de préstamo vigente, préstamo pagado,
+cuotas pendientes, cuotas vencidas y un préstamo inexistente. La carpeta 05 crea datos propios
+(usuario + préstamo de prueba) en cada corrida para probar los endpoints de escritura.
 
 ```powershell
 npm run test:api:grupo-03 -- --env-var "api_key=$env:API_KEY"
@@ -74,14 +118,50 @@ La ejecución genera `newman/grupo-03/newman-results.json`. En GitHub Actions, e
 `INFORME_DE_AUT_GRUPO_03_PRESTAMOS.pdf` y publica ambos archivos como artefacto. El workflow usa
 el secreto `API_KEY` del Environment `api_key`.
 
+Los escenarios BDD `@api` se ejecutan con el perfil dedicado (no abren navegador):
+
+```powershell
+$env:API_KEY = "<clave del sandbox>"
+npm run test:bdd:g03-api
+```
+
+El perfil deja `results/cucumber-g03-api.json` y `results/cucumber-g03-api.html`. El workflow
+[`grupo-03-prestamos.yml`](../../.github/workflows/grupo-03-prestamos.yml) corre Newman, genera el
+PDF, ejecuta estos escenarios BDD y publica dos artefactos:
+
+- `grupo-03-prestamos-newman-reportes`: JSON de Newman + `INFORME_DE_AUT_GRUPO_03_PRESTAMOS.pdf`.
+- `grupo-03-prestamos-bdd-api`: reporte JSON/HTML de Cucumber del perfil `g03-api`.
+
+El job usa `concurrency` por rama para que una corrida nueva cancele la anterior y no se reparta el
+límite de requests de la `API_KEY` compartida.
+
+## Incidencias encontradas
+
+Las incidencias del módulo están **publicadas como issues en GitHub**
+([#67–#73](https://github.com/stevenayal/curso_automatizacion/issues?q=is%3Aissue+label%3Agrupo-03)).
+Cada issue explica el bloqueo real de los escenarios que siguen marcados `@wip`, o el bug de
+infraestructura detectado.
+
+| # | Incidencia | Tipo | GitHub |
+|---|---|---|---|
+| 01 | Falta segundo cliente y préstamo ajeno para validar acceso denegado | Bloqueo de datos | [#67](https://github.com/stevenayal/curso_automatizacion/issues/67) |
+| 02 | Falta fixture de préstamo con todas las cuotas pagadas en la UI | Bloqueo de datos | [#68](https://github.com/stevenayal/curso_automatizacion/issues/68) |
+| 03 | La UI no expone estado de mora ni fixture de cuotas vencidas | Bloqueo de UI | [#69](https://github.com/stevenayal/curso_automatizacion/issues/69) |
+| 04 | Falta cuenta aislada sin fondos para probar el pago rechazado | Bloqueo de datos | [#70](https://github.com/stevenayal/curso_automatizacion/issues/70) |
+| 05 | La UI no permite seleccionar múltiples cuotas para pagar | Bloqueo de UI | [#71](https://github.com/stevenayal/curso_automatizacion/issues/71) |
+| 06 | Timeout por defecto de Cucumber insuficiente para hooks de Playwright | Bug de infra | [#72](https://github.com/stevenayal/curso_automatizacion/issues/72) |
+| 07 | Inconsistencia de estado: la feature dice "cancelado" y el modelo usa "pagado" | Bug de definición | [#73](https://github.com/stevenayal/curso_automatizacion/issues/73) |
+
 ## Entregables
 
 Checklist según [ENTREGABLES.md](../../ENTREGABLES.md):
 
 - [X] Análisis y alcance (sección de arriba completa)
 - [X] BDD — `features/prestamos.feature` (happy path, negativo y edge case)
+- [X] BDD API — `features/prestamos-api.feature` (6 escenarios `@api` con fixture aislado y validación SQL)
 - [X] API — colección Postman/Newman en `postman/` con assertions, JSON de resultados e informe PDF
 - [ ] UI — `tests/e2e/prestamos.spec.ts` con Playwright
 - [X] Evidencias — JSON de Newman e informe PDF publicados como artefactos del workflow
 - [X] CI/CD — workflow de Newman configurado (requiere el secreto `API_KEY` del Environment `api_key`)
+- [X] Incidencias — bloqueos y bugs publicados como issues en GitHub ([#67–#73](https://github.com/stevenayal/curso_automatizacion/issues?q=is%3Aissue+label%3Agrupo-03))
 - [X] PR de `grupo-03-prestamos` hacia `main` usando la plantilla del repo

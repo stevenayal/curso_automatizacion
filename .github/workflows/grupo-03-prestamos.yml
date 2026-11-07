@@ -7,6 +7,10 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/grupo-03-prestamos.yml'
+      - 'cucumber.js'
+      - 'tests/bdd/steps/prestamos-api.steps.ts'
+      - 'tests/bdd/support/prestamos-api.hooks.ts'
+      - 'tests/bdd/support/loans.hooks.ts'
   push:
     branches:
       - main
@@ -15,15 +19,26 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/grupo-03-prestamos.yml'
+      - 'cucumber.js'
+      - 'tests/bdd/steps/prestamos-api.steps.ts'
+      - 'tests/bdd/support/prestamos-api.hooks.ts'
+      - 'tests/bdd/support/loans.hooks.ts'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# La API_KEY es compartida y tiene límite de requests: una corrida nueva de la
+# misma rama cancela la anterior en lugar de repartir el límite entre las dos.
+concurrency:
+  group: grupo-03-prestamos-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   newman:
-    name: Newman API y reportes
+    name: Newman API, BDD y reportes
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: api_key
     steps:
       - name: Checkout
@@ -76,3 +91,35 @@ jobs:
           path: newman/grupo-03/
           if-no-files-found: warn
           retention-days: 14
+
+      # Perfil de solo API: no abre navegador (ver getBrowser en loans.hooks.ts).
+      - name: Ejecutar escenarios BDD API de prestamos
+        if: always()
+        run: |
+          mkdir -p results
+          npm run test:bdd:g03-api
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          API_URL: ${{ vars.API_URL || 'https://aiquaa-sandbox-api.vercel.app' }}
+
+      - name: Publicar reporte BDD API
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grupo-03-prestamos-bdd-api
+          path: results/cucumber-g03-api.*
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Resumir resultados BDD API
+        if: always()
+        run: node scripts/check-cucumber-results.mjs results/cucumber-g03-api.json
+
+      - name: Resumen del pipeline
+        if: always()
+        run: |
+          echo "### Grupo 03 - Préstamos" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Newman JSON/PDF: artefacto grupo-03-prestamos-newman-reportes." >> "$GITHUB_STEP_SUMMARY"
+          echo "- BDD API: artefacto grupo-03-prestamos-bdd-api." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Ejecución: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
