@@ -54,6 +54,23 @@ del documento. Un escenario así fallaría siempre sin que haya un defecto.
 | Pago con fondos insuficientes → rechazo | "Pagar una cuota no debita ninguna cuenta ni valida fondos" | — (brecha) |
 | Seleccionar varias cuotas y sumar | No existe esa operación; se paga de a una cuota completa | "La web solo permite pagar la próxima cuota" |
 
+### Actualización: lo que la web ya cubre (noviembre 2026)
+
+Después de esta conversión, la web del sandbox sumó reglas de pantalla para cuatro de los
+escenarios eliminados ([aiquaa-sandbox-web#13](https://github.com/stevenayal/aiquaa-sandbox-web/pull/13)).
+**La API no cambió**: siguen siendo brechas de la API y se prueban como reglas de UI (`@regla-ui`),
+igual que "pagar solo la próxima cuota".
+
+| Escenario eliminado | Qué hace ahora la web | Datos para probarlo | Issue |
+|---|---|---|---|
+| Consulta de un préstamo de otro cliente → rechazo | Un cliente logueado (no admin) ve "Acceso denegado" (`v2-prestamos-acceso-denegado`) y la lista le muestra solo sus préstamos | Ingresar como `bruno.ramirez@bancoqa.com` (dueño del préstamo 2) y abrir el préstamo 4 | [#67](https://github.com/stevenayal/curso_automatizacion/issues/67) |
+| Cuotas vencidas → préstamo en mora | Cuota pendiente con vencimiento pasado = "Vencida"; el detalle muestra "En mora" (`v2-prestamos-detail-mora`), el monto vencido (`v2-prestamos-detail-monto-vencido`) y la cantidad de cuotas vencidas | Préstamo 4 | [#69](https://github.com/stevenayal/curso_automatizacion/issues/69) |
+| Pago con fondos insuficientes → rechazo | Si la cuenta del préstamo no cubre el pago, "Fondos insuficientes" en `v2-prestamos-cuotas-pago-error`, sin llamar a la API | Préstamo 4: seleccionar las 6 cuotas (PYG 9.600.000) contra el saldo de la cuenta #4. Aislado: cliente y cuenta propios con saldo 0 | [#70](https://github.com/stevenayal/curso_automatizacion/issues/70) |
+| Seleccionar varias cuotas y sumar | Casillas por cuota (`v2-prestamos-cuotas-row-{n}-seleccionar`): solo cuotas consecutivas desde la próxima, con el total exacto (`v2-prestamos-cuotas-seleccion-total`) y el botón `v2-prestamos-cuotas-pagar-seleccion` | Préstamo propio aprobado con 3 o más cuotas | [#71](https://github.com/stevenayal/curso_automatizacion/issues/71) |
+
+El préstamo pagado de "Ver el detalle de un préstamo totalmente pagado" es ahora el **126**
+(el 6 del seed fue dado de baja) — [#68](https://github.com/stevenayal/curso_automatizacion/issues/68).
+
 ## Matriz requerimiento → escenario
 
 Archivo: **A** = `F_GRUPO_03_PRESTAMOS_API.feature`, **W** = `prestamos.feature`.

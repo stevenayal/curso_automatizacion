@@ -55,7 +55,7 @@ Modelo de datos confirmado contra la API real:
 | Consulta de un préstamo con cuotas vencidas sin pagar | `GET /api/v2/prestamos/{id}/cuotas?estado=vencida` | `prestamo_id=4` (2 cuotas vencidas reales del sandbox, sin `fecha_pago`) | Devuelve solo cuotas en estado `vencida`; ninguna tiene `fecha_pago` registrada |
 | El cliente consulta el saldo de un préstamo vigente | `GET /api/v2/prestamos/{id}` | `prestamo_id=2` (estado `aprobado`) | Devuelve `saldo_pendiente` > 0 y datos del préstamo |
 | Consulta de un préstamo de otro cliente | `GET /api/v2/prestamos/{id}` | por definir (pendiente de implementar por otro integrante) | por definir |
-| Préstamo con todas las cuotas pagadas | `GET /api/v2/prestamos/{id}` | `prestamo_id=6` (estado `pagado`, `saldo_pendiente` = "0.00") | `saldo_pendiente` = 0 y `estado` = `pagado` |
+| Préstamo con todas las cuotas pagadas | `GET /api/v2/prestamos/{id}` | `prestamo_id=126` (estado `pagado`, `saldo_pendiente` = "0.00"; reemplaza al 6 del seed, dado de baja). La colección toma el primer préstamo `pagado` del listado | `saldo_pendiente` = 0 y `estado` = `pagado` |
 | Solicitud de préstamo (happy path) | `POST /api/v2/prestamos` | usuario creado en el run, `montoSolicitado=1200000`, `tasaInteres=12`, `plazoMeses=6` | `201`, estado `solicitado`; la BD confirma la fila insertada |
 | Solicitud con monto inválido (negativo) | `POST /api/v2/prestamos` | `montoSolicitado=-500` (única variable sobreescrita) | `400`; `COUNT(*)` de préstamos del usuario sin cambios |
 | Aprobación genera el cronograma | `POST /api/v2/prestamos/{id}/aprobar` | préstamo del run en `solicitado` | `200`; BD: estado `aprobado`, 6 cuotas `pendiente`, cuota = monto × (1 + tasa/100) / plazo |

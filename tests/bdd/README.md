@@ -10,6 +10,14 @@ Acá van los step definitions y el soporte de Cucumber que escribe cada grupo.
 [`cucumber.js`](../../cucumber.js) carga `tests/bdd/**/*.ts` (vía `ts-node`) y corre los `.feature`
 de `features/` y de `grupos/**/features/`, **excluyendo los que tienen el tag `@wip`**.
 
+## Timeout
+
+El timeout por defecto de hooks y steps es de **60 s** para toda la suite y se define en un solo
+lugar: [`support/timeouts.ts`](support/timeouts.ts). El default de Cucumber (5 s) no alcanza para
+lanzar Chromium. No llames a `setDefaultTimeout` en el hook de tu grupo: es global y pisaría el
+de los demás. Si un hook o step necesita más tiempo, pasalo en sus opciones:
+`Before({ timeout: 120_000 }, ...)`.
+
 ## Habilitar la suite de un grupo
 
 1. Escribir los escenarios en `grupos/grupo-0N-modulo/features/<modulo>.feature`, con el tag del

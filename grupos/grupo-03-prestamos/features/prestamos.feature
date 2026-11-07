@@ -21,10 +21,12 @@ Característica: Préstamos en la aplicación web
     Y muestra la próxima cuota pendiente
 
   # criterio: un préstamo cancelado muestra saldo cero y estado pagado
+  # datos: préstamo 126 (Cliente #1, 3 cuotas de PYG 560.000 pagadas, saldo 0). Reemplaza al 6 del
+  # seed, que fue dado de baja; ver "Datos de prueba de préstamos" en el README de aiquaa-sandbox-web.
   @wip @RF-G3-03 @edge-case @datos-sembrados
   Escenario: Ver el detalle de un préstamo totalmente pagado
     Dado que el administrador está autenticado en la sandbox
-    Cuando consulta el detalle del préstamo 6
+    Cuando consulta el detalle del préstamo 126
     Entonces el préstamo está en estado "pagado"
     Y muestra el saldo pendiente "PYG 0,00"
     Y el avance de pago es 100 %
