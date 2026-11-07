@@ -11,6 +11,8 @@ jobs:
   newman:
     name: Pruebas Postman y reporte Python
     runs-on: ubuntu-latest
+    # El secret API_KEY vive en el entorno api_key: sin esta linea llega vacio y la API responde 401.
+    environment: api_key
 
     steps:
       - name: Obtener repositorio
