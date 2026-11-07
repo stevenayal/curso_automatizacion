@@ -1,0 +1,73 @@
+[
+  {
+    "description": "",
+    "elements": [
+      {
+        "description": "",
+        "id": "grupo-02---tarjetas;solicitar-una-nueva-tarjeta-exitosamente",
+        "keyword": "Scenario",
+        "line": 4,
+        "name": "Solicitar una nueva tarjeta exitosamente",
+        "steps": [
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 5,
+            "name": "que estoy en la página de tarjetas",
+            "match": {
+              "location": "tests\\bdd\\steps\\tarjetas.steps.ts:9"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 840192599
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 6,
+            "name": "solicito una nueva tarjeta",
+            "match": {
+              "location": "tests\\bdd\\steps\\tarjetas.steps.ts:19"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 50006699
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 7,
+            "name": "el sistema confirma la creación de la tarjeta",
+            "match": {
+              "location": "tests\\bdd\\steps\\tarjetas.steps.ts:23"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 13131900
+            }
+          }
+        ],
+        "tags": [
+          {
+            "name": "@ui",
+            "line": 1
+          }
+        ],
+        "type": "scenario"
+      }
+    ],
+    "id": "grupo-02---tarjetas",
+    "line": 2,
+    "keyword": "Feature",
+    "name": "Grupo 02 - Tarjetas",
+    "tags": [
+      {
+        "name": "@ui",
+        "line": 1
+      }
+    ],
+    "uri": "features\\tarjetas.feature"
+  }
+]
