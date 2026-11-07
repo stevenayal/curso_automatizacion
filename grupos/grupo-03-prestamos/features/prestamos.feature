@@ -10,6 +10,8 @@ Característica: Préstamos en la aplicación web
 
   @happy-path @smoke
   # criterio: un préstamo aprobado muestra su saldo pendiente y la próxima cuota por pagar.
+  # datos: préstamo 2 del seed (Cliente #2, estado Aprobado, saldo PYG 6.880.000,00,
+  # 5 de 12 cuotas pagadas; la próxima pendiente es la cuota 6).
   Escenario: Un usuario autorizado consulta el saldo de un préstamo vigente
     Dado que el administrador está autenticado en la sandbox
     Y que el préstamo vigente 2 está disponible

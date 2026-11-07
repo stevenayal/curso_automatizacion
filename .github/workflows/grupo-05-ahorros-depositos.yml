@@ -1,0 +1,130 @@
+name: Grupo 05 - Ahorros y Depositos API
+
+# Ejecuta con Newman la coleccion de Grupo 05 (grupos/grupo-05-ahorros-depositos/postman:
+# depositos, tasas, intereses, cancelacion, planes de ahorro) y genera el informe PDF con el
+# reporter de Python de la skill postman-newman.
+# La coleccion obtiene o crea sus propios datos con pre-request SQL; no depende de ids fijos.
+
+# Sin pull_request: los PR desde forks no reciben secrets y el job quedaria en rojo por
+# falta de API_KEY. Se ejecuta por push a main o manualmente desde Actions.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'grupos/grupo-05-ahorros-depositos/**'
+      - 'skills/postman-newman-skill/reporter/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/grupo-05-ahorros-depositos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# La coleccion crea y cancela depositos en un sandbox compartido y el limite es de
+# 30 requests por minuto por credencial: se comparte la cola con el workflow de 05-01
+# para que nunca corran dos colecciones del grupo 5 a la vez.
+concurrency:
+  group: grupo-05-01-sandbox
+  cancel-in-progress: false
+
+env:
+  POSTMAN_DIR: grupos/grupo-05-ahorros-depositos/postman
+  RESULTS_DIR: newman/grupo-05
+
+jobs:
+  newman:
+    name: Newman API y reportes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: api_key
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: skills/postman-newman-skill/reporter/requirements.txt
+
+      - name: Instalar dependencias
+        run: |
+          npm ci
+          python -m pip install -r skills/postman-newman-skill/reporter/requirements.txt
+
+      - name: Ejecutar coleccion de ahorros y depositos
+        # La API key sale del secret API_KEY y se pasa como variable de entorno de Newman
+        # (--env-var apiKey); nunca se escribe en la coleccion, en el environment ni en logs.
+        # --delay-request respeta el limite de 30 requests por minuto por credencial.
+        # Sin --suppress-exit-code: si falla una asercion, el job queda en rojo.
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          if [ -z "$API_KEY" ]; then echo "::error::Falta el secret API_KEY"; exit 1; fi
+          mkdir -p "$RESULTS_DIR"
+          npx newman run "$POSTMAN_DIR/grupo-05-ahorros-y-depositos.postman_collection.json" \
+            -e "$POSTMAN_DIR/E_GRUPO_05_AHORROS_DEPOSITOS.postman_environment.json" \
+            --env-var "apiKey=$API_KEY" \
+            --delay-request 2500 \
+            --timeout-request 15000 \
+            --timeout-script 30000 \
+            --reporters cli,json,junit \
+            --reporter-json-export "$RESULTS_DIR/newman-results.json" \
+            --reporter-junit-export "$RESULTS_DIR/newman-junit.xml"
+
+      - name: Enmascarar la API key en los resultados
+        # Los reportes de Newman incluyen los headers de cada request (x-api-key). GitHub solo
+        # oculta los secrets en los logs, no dentro de los archivos que se suben como artifact.
+        if: always()
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+
+          key = os.environ.get("API_KEY", "")
+          if key:
+              for path in pathlib.Path(os.environ["RESULTS_DIR"]).glob("newman-*"):
+                  text = path.read_text(encoding="utf-8")
+                  if key in text:
+                      path.write_text(text.replace(key, "[REDACTED]"), encoding="utf-8")
+                      print(f"API key enmascarada en {path.name}")
+          PY
+
+      - name: Generar informe PDF
+        if: always()
+        run: |
+          if [[ -f "$RESULTS_DIR/newman-results.json" ]]; then
+            python skills/postman-newman-skill/reporter/newman_report.py \
+              --results "$RESULTS_DIR/newman-results.json" \
+              --output "$RESULTS_DIR/INFORME_DE_AUT_GRUPO_05_AHORROS_DEPOSITOS.pdf" \
+              --banner skills/postman-newman-skill/reporter/assets/banner_portada.png \
+              --logo-aiquaa skills/postman-newman-skill/reporter/assets/logo_aiquaa_circle.png \
+              --logo-postman skills/postman-newman-skill/reporter/assets/logo_postman_clean.png \
+              --api-version "v2" \
+              --repo-url "${{ github.server_url }}/${{ github.repository }}" \
+              --author "Grupo 05 - Ahorros y Depositos" \
+              --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          else
+            echo "::error::No se genero el JSON de resultados de Newman."
+            exit 1
+          fi
+
+      - name: Publicar reportes Newman
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grupo-05-ahorros-depositos-newman-reportes
+          path: newman/grupo-05/
+          if-no-files-found: warn
+          retention-days: 14
