@@ -1,13 +1,12 @@
 # language: es
+# Fuente: docs/requerimientos/grupo-03-prestamos.pdf, sección 6 (flujo web y reglas de UI).
+# Los escenarios de API + base de datos están en F_GRUPO_03_PRESTAMOS_API.feature.
+# Trazabilidad y escenarios descartados: grupos/grupo-03-prestamos/docs/BDD_TRAZABILIDAD.md
 @grupo-03 @web
-Característica: Préstamos
+Característica: Préstamos en la aplicación web
   Como cliente del banco
-  quiero consultar mis préstamos y sus cuotas
-  para saber cuánto debo y cuándo vence
-
-  # Los escenarios @wip quedan documentados con el bloqueo verificado el 2026-11-06
-  # contra https://aiquaa-sandbox-web.vercel.app (Curso 2). No se inventan datos ni
-  # resultados: primero se comprueba el dato/fixture y la funcionalidad en la UI.
+  quiero simular, solicitar y seguir mis préstamos desde la web
+  para saber cuánto debo, cuánto pago por cuota y cuándo vence
 
   @happy-path @smoke
   # criterio: un préstamo aprobado muestra su saldo pendiente y la próxima cuota por pagar.
@@ -21,54 +20,69 @@ Característica: Préstamos
     Y muestra el saldo pendiente "PYG 6.880.000,00"
     Y muestra la próxima cuota pendiente
 
-  # bloqueo (verificado): la UI no valida pertenencia. Con un cliente autenticado se puede
-  # abrir por URL el detalle de un préstamo ajeno (cliente 1 → préstamo 4, de la clienta 3)
-  # y la pantalla lo muestra; no existe un rechazo que el escenario pueda asertar.
-  # Es un hallazgo de control de acceso, no un caso automatizable en verde.
-  @wip @negativo
-  # criterio: un cliente no debe poder consultar el préstamo de otro cliente.
-  Escenario: Consulta de un préstamo de otro cliente
-    Dado que el cliente está autenticado
-    Cuando consulta un préstamo que no le pertenece
-    Entonces el sistema rechaza la consulta
+  # criterio: un préstamo cancelado muestra saldo cero y estado pagado
+  @wip @RF-G3-03 @edge-case @datos-sembrados
+  Escenario: Ver el detalle de un préstamo totalmente pagado
+    Dado que el administrador está autenticado en la sandbox
+    Cuando consulta el detalle del préstamo 6
+    Entonces el préstamo está en estado "pagado"
+    Y muestra el saldo pendiente "PYG 0,00"
+    Y el avance de pago es 100 %
 
-  # bloqueo (verificado): no hay fixture de préstamo totalmente pagado. La API devuelve 25
-  # préstamos y ninguno tiene estado "pagado"; el préstamo 12 tiene saldo 0 pero figura
-  # "solicitado". Además el estado "cancelado" del criterio no existe en el modelo: la UI
-  # usa solicitado / aprobado / rechazado / pagado.
-  @wip @edge-case
-  # criterio: un préstamo sin cuotas pendientes muestra saldo cero y el estado final.
-  Escenario: Préstamo con todas las cuotas pagadas
-    Dado que el cliente tiene un préstamo con todas sus cuotas pagadas
-    Cuando consulta el detalle de ese préstamo
-    Entonces el saldo pendiente es cero y el estado es cancelado
+  # criterio: la simulación muestra el cronograma antes de solicitar y coincide con el que genera la aprobación
+  @wip @RF-G3-02 @RF-G3-06 @happy-path
+  Escenario: Simular un préstamo antes de solicitarlo
+    Dado que el administrador está autenticado en la sandbox
+    Y está en la pantalla de nueva solicitud de préstamo
+    Cuando simula un préstamo de 6.000.000 al 20 % en 6 meses
+    Entonces ve un cronograma proyectado de 6 cuotas de "PYG 1.200.000,00"
+    Y ve el total a devolver "PYG 7.200.000,00"
 
-  # bloqueo (verificado): el préstamo 4 muestra 2 cuotas en estado "Vencida", pero la UI no
-  # expone un indicador de mora a nivel del préstamo ni un total que separe las vencidas.
-  # El criterio pide "el sistema indica que el préstamo está en mora"; ese texto no existe.
-  @wip @negativo
-  # criterio: un préstamo con cuotas vencidas se informa como en mora y suma la deuda vencida.
-  Escenario: Consulta de un préstamo con cuotas vencidas sin pagar
-    Dado que el cliente tiene un préstamo con al menos una cuota vencida y sin pagar
-    Cuando consulta el detalle de ese préstamo
-    Entonces el sistema indica que el préstamo está en mora
-    Y muestra el monto total adeudado incluyendo las cuotas vencidas
+  # criterio: regla de UI — el monto debe estar entre 500.000 y 500.000.000 (la API acepta cualquier monto positivo)
+  @wip @RF-G3-02 @negativo @regla-ui
+  Esquema del escenario: La web rechaza montos fuera del rango permitido
+    Dado que el administrador está autenticado en la sandbox
+    Y está en la pantalla de nueva solicitud de préstamo
+    Cuando ingresa un monto de <monto>
+    Entonces ve un mensaje de validación sobre el monto
+    Y no puede avanzar a la confirmación
 
-  # bloqueo: el escenario requiere ejecutar un pago sobre un préstamo cuya cuenta no tenga
-  # fondos. La sandbox es compartida y no hay un fixture web aislado de cuenta sin saldo;
-  # la regla prohíbe pagos sin fixture aislado.
-  @wip @negativo
-  # criterio: el sistema rechaza el pago de una cuota cuando la cuenta no tiene fondos.
-  Escenario: Intento de pago de cuota con fondos insuficientes
-    Dado que el cliente quiere pagar una cuota de su préstamo
-    Cuando consulta al préstamo correspondiente a pagar
-    Entonces el sistema rechaza el pago debido a fondos insuficientes
+    Ejemplos:
+      | monto       |
+      | 499999      |
+      | 500000001   |
 
-  # bloqueo (verificado): el detalle solo muestra un botón "Pagar" en la primera cuota
-  # pendiente (la UI paga en orden). No hay checkboxes ni selección múltiple de cuotas.
-  @wip @happy-path
-  # criterio: el cliente puede seleccionar varias cuotas y el sistema suma sus montos.
-  Escenario: El cliente selecciona múltiples cuotas para pagar
-    Dado que el cliente tiene un préstamo vigente con al menos dos cuotas pendientes
-    Cuando consulta el detalle y selecciona más de una cuota consecutiva a pagar
-    Entonces el sistema calcula y devuelve la sumatoria exacta del monto de las cuotas seleccionadas
+  # criterio: regla de UI — el plazo se elige de una lista fija (la API acepta de 1 a 120)
+  @wip @RF-G3-02 @regla-ui
+  Escenario: El plazo solo se elige de la lista permitida
+    Dado que el administrador está autenticado en la sandbox
+    Y está en la pantalla de nueva solicitud de préstamo
+    Cuando abre la lista de plazos
+    Entonces solo puede elegir 6, 12, 18, 24, 36, 48 o 60 meses
+
+  # criterio: regla de UI — la cuenta de acreditación y la aceptación de condiciones son obligatorias
+  @wip @RF-G3-02 @negativo @regla-ui
+  Escenario: No se puede confirmar sin cuenta ni aceptación de condiciones
+    Dado que el administrador está autenticado en la sandbox
+    Y está en la pantalla de nueva solicitud de préstamo
+    Cuando completa la simulación sin elegir una cuenta de acreditación
+    Entonces no puede confirmar la solicitud
+    Y al elegir la cuenta tampoco puede confirmar sin aceptar las condiciones
+
+  # criterio: regla de UI — solo se puede pagar la próxima cuota impaga, en orden (la API acepta cualquier orden)
+  @wip @RF-G3-08 @regla-ui
+  Escenario: La web solo permite pagar la próxima cuota
+    Dado que el administrador está autenticado en la sandbox
+    Y tiene un préstamo aprobado propio con 3 cuotas pendientes
+    Cuando abre el detalle del préstamo
+    Entonces solo la cuota 1 tiene la acción de pago habilitada
+    Y al pagarla, la acción de pago pasa a la cuota 2
+
+  # criterio: mientras está solicitado se puede desistir; con saldo pendiente la baja queda deshabilitada
+  @wip @RF-G3-05 @regla-ui
+  Escenario: Desistir de una solicitud desde el detalle
+    Dado que el administrador está autenticado en la sandbox
+    Y tiene un préstamo solicitado propio
+    Cuando abre el detalle del préstamo
+    Entonces ve la acción "Desistir de la solicitud" habilitada
+    Y después de aprobarlo la acción de baja queda deshabilitada
