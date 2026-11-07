@@ -1,0 +1,4 @@
+interface:
+  display_name: "Videos de Cucumber y Playwright"
+  short_description: "Graba escenarios y crea una galería externa de videos"
+  default_prompt: "Usá $cucumber-demo-videos para grabar las pruebas Cucumber del Grupo 05-01 y generar una galería externa de demostración."
